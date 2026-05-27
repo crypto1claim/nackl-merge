@@ -1,0 +1,4928 @@
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; user-select: none; }
+
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg, linear-gradient(180deg, #0d0a1f 0%, #1a0d2e 100%));
+  color: var(--text-primary, #ffffff);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  touch-action: none;
+  overscroll-behavior: none;
+  transition: background 0.4s ease;
+}
+
+#root {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  position: relative;
+}
+
+/* HUD */
+.hud {
+  width: 100%;
+  max-width: 480px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 14px;
+  padding-top: calc(14px + env(safe-area-inset-top));
+  gap: 10px;
+  box-sizing: border-box;
+}
+.hud-left { flex: 1; min-width: 0; }
+.hud-right { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+
+.hud-wallet {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--hud-wallet);
+  border: 1px solid var(--panel-border);
+  padding: 8px 14px;
+  border-radius: 100px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: "SF Mono", Menlo, monospace;
+  color: var(--text-secondary);
+}
+.wallet-dot {
+  width: 8px; height: 8px;
+  background: #4ade80;
+  border-radius: 50%;
+  box-shadow: 0 0 8px #4ade80;
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.6; transform: scale(0.85); }
+}
+
+.hud-label {
+  font-size: 9px;
+  opacity: 0.5;
+  letter-spacing: 0.06em;
+  font-weight: 700;
+  color: var(--text-hint);
+  white-space: nowrap;
+}
+.hud-score-block, .hud-best-block { text-align: right; min-width: 0; }
+.score {
+  color: var(--text-primary);
+  font-size: 19px;
+  font-weight: 800;
+  text-shadow: 0 0 12px color-mix(in srgb, var(--accent-secondary) 40%, transparent);
+  white-space: nowrap;
+}
+.hud-best { font-size: 14px; color: var(--text-secondary); font-weight: 700; white-space: nowrap; }
+
+/* На узких экранах (iPhone SE, mini) ещё уменьшаем */
+@media (max-width: 380px) {
+  .hud { padding: 12px 8px; gap: 4px; }
+  .score { font-size: 16px; }
+  .hud-best { font-size: 12px; }
+  .hud-wallet { font-size: 10px; padding: 6px 10px; gap: 6px; }
+  .hud-score-block .hud-label,
+  .hud-best-block .hud-label { display: none; } /* экономим высоту */
+  .settings-fab { width: 34px; height: 34px; }
+  .hud-right { gap: 6px; }
+}
+
+/* На очень узких (iPhone SE 1) — прячем NEXT блок чтобы место хватило */
+@media (max-width: 360px) {
+  .hud-next { display: none; }
+}
+
+/* Шестерёнка FAB */
+.settings-fab {
+  width: 38px; height: 38px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--hud-wallet);
+  border: 1px solid var(--panel-border);
+  border-radius: 50%;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: transform 0.1s, background 0.2s;
+}
+.settings-fab:active { transform: scale(0.92); }
+
+.menu-settings {
+  position: absolute;
+  top: calc(16px + env(safe-area-inset-top));
+  right: 16px;
+  z-index: 5;
+}
+
+/* Canvas */
+.canvas-wrap {
+  flex: 1;
+  width: 100%;
+  max-width: 480px;
+  display: flex;
+  justify-content: center;
+  align-items: stretch;
+  padding: 0 12px 12px;
+  /* Safe-area iPhone — место под home indicator */
+  padding-bottom: calc(12px + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+}
+canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  border-radius: 20px;
+  background:
+    radial-gradient(ellipse at 50% 100%, var(--canvas-glow) 0%, transparent 70%),
+    linear-gradient(180deg, var(--canvas-bg-inner) 0%, var(--canvas-bg-outer) 100%);
+  box-shadow:
+    inset 0 0 60px color-mix(in srgb, var(--accent) 15%, transparent),
+    0 8px 32px rgba(0, 0, 0, 0.5),
+    0 0 0 1px var(--panel-border);
+  touch-action: none;
+  transition: background 0.4s ease, box-shadow 0.4s ease;
+}
+
+/* ============ Меню ============ */
+.menu-screen { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; padding: 24px; overflow: hidden; }
+.menu-glow { position: absolute; border-radius: 50%; filter: blur(80px); opacity: 0.5; z-index: 0; pointer-events: none; }
+.menu-glow-1 { width: 320px; height: 320px; background: var(--accent); top: -80px; left: -80px; animation: float-1 8s ease-in-out infinite; }
+.menu-glow-2 { width: 280px; height: 280px; background: var(--accent-secondary); bottom: -60px; right: -60px; animation: float-2 10s ease-in-out infinite; }
+@keyframes float-1 { 0%,100%{transform:translate(0,0);} 50%{transform:translate(40px,60px);} }
+@keyframes float-2 { 0%,100%{transform:translate(0,0);} 50%{transform:translate(-50px,-40px);} }
+
+.menu-content { position: relative; z-index: 1; width: 100%; max-width: 380px; text-align: center; }
+.menu-logo { margin-bottom: 32px; }
+.menu-logo-coin {
+  width: 130px; height: 130px;
+  margin: 0 auto 16px;
+  filter: drop-shadow(0 0 30px color-mix(in srgb, var(--accent-secondary) 40%, transparent));
+  animation: logo-float 4s ease-in-out infinite;
+}
+@keyframes logo-float { 0%,100%{transform:translateY(0);} 50%{transform:translateY(-8px);} }
+
+.menu-title {
+  font-size: 38px;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  background: linear-gradient(135deg, var(--accent-secondary) 0%, var(--accent) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 6px;
+}
+.menu-subtitle { font-size: 15px; color: var(--text-secondary); font-weight: 500; }
+
+.menu-info {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  padding: 18px 20px;
+  margin-bottom: 24px;
+  backdrop-filter: blur(10px);
+}
+.info-row { display: flex; align-items: center; gap: 12px; padding: 6px 0; font-size: 14px; color: var(--text-secondary); }
+.info-icon { font-size: 18px; width: 24px; text-align: center; }
+
+.menu-error {
+  background: rgba(255, 80, 80, 0.15);
+  border: 1px solid rgba(255, 80, 80, 0.4);
+  color: #ff8a8a;
+  padding: 12px 16px;
+  border-radius: 12px;
+  margin-bottom: 16px;
+  font-size: 13px;
+}
+
+.menu-cta {
+  width: 100%;
+  display: flex; align-items: center; justify-content: center; gap: 4px;
+  background: var(--cta-gradient);
+  color: #fff;
+  border: none;
+  padding: 18px 24px;
+  border-radius: 16px;
+  font-size: 17px;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow:
+    0 10px 30px color-mix(in srgb, var(--accent) 45%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--accent-secondary) 60%, transparent);
+  transition: transform 0.1s, box-shadow 0.2s;
+}
+.menu-cta:active:not(:disabled) { transform: scale(0.97); }
+.menu-cta.connecting { opacity: 0.85; cursor: wait; }
+
+.spinner {
+  width: 18px; height: 18px;
+  border: 2.5px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-right: 10px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.menu-footer { margin-top: 20px; font-size: 11px; color: var(--text-hint); letter-spacing: 0.05em; }
+
+/* ============ Game Over оверлей ============ */
+.overlay {
+  position: fixed; inset: 0;
+  background: color-mix(in srgb, var(--canvas-bg-outer) 80%, transparent);
+  backdrop-filter: blur(12px);
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px; z-index: 100;
+  animation: fadeIn 0.25s ease-out;
+}
+@keyframes fadeIn { from {opacity:0;} to {opacity:1;} }
+
+.overlay-card {
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 24px;
+  padding: 32px 28px;
+  text-align: center;
+  width: 100%; max-width: 320px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.6), 0 0 80px color-mix(in srgb, var(--accent) 20%, transparent);
+  animation: scaleIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes scaleIn { from {transform:scale(0.85); opacity:0;} to {transform:scale(1); opacity:1;} }
+
+.overlay-title {
+  font-size: 26px; font-weight: 800; margin-bottom: 24px;
+  background: linear-gradient(135deg, var(--accent-secondary), var(--accent));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+}
+
+.stats { display: flex; gap: 16px; margin-bottom: 28px; justify-content: center; }
+.stat {
+  flex: 1;
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 15%, transparent);
+  border-radius: 14px;
+  padding: 14px 8px;
+}
+.stat-label { font-size: 11px; color: var(--text-hint); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; }
+.stat-value { font-size: 28px; font-weight: 800; color: var(--accent-secondary); }
+
+.btn-primary {
+  position: relative;
+  width: 100%;
+  background: var(--cta-gradient);
+  color: #fff;
+  border: 2px solid color-mix(in srgb, white 32%, transparent);
+  padding: 16px 24px;
+  border-radius: 16px;
+  font-size: 16px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  text-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.5),
+    0 0 10px color-mix(in srgb, var(--accent-secondary) 40%, transparent);
+  box-shadow:
+    0 10px 24px color-mix(in srgb, var(--accent) 50%, transparent),
+    0 4px 8px color-mix(in srgb, var(--accent-secondary) 25%, transparent),
+    0 2px 4px rgba(0, 0, 0, 0.35),
+    inset 0 2px 0 rgba(255, 255, 255, 0.40),
+    inset 0 -4px 8px rgba(0, 0, 0, 0.28);
+  overflow: hidden;
+  isolation: isolate;
+  transition: transform 0.12s cubic-bezier(0.34, 1.56, 0.64, 1),
+              box-shadow 0.2s ease;
+}
+.btn-primary::before {
+  content: '';
+  position: absolute;
+  top: 2px; left: 2px; right: 2px;
+  height: 50%;
+  background: linear-gradient(180deg,
+    rgba(255, 255, 255, 0.40) 0%,
+    rgba(255, 255, 255, 0.10) 70%,
+    transparent 100%);
+  border-radius: 14px 14px 80% 80% / 14px 14px 100% 100%;
+  pointer-events: none;
+}
+.btn-primary::after {
+  content: '';
+  position: absolute;
+  top: 0; bottom: 0;
+  left: -40%;
+  width: 35%;
+  background: linear-gradient(105deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.40) 50%,
+    transparent 100%);
+  transform: skewX(-20deg);
+  animation: cta-shine 3.5s ease-in-out infinite;
+  pointer-events: none;
+}
+.btn-primary:active {
+  transform: translateY(3px) scale(0.97);
+  box-shadow:
+    0 4px 10px color-mix(in srgb, var(--accent) 30%, transparent),
+    0 2px 3px rgba(0, 0, 0, 0.4),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.18),
+    inset 0 4px 10px rgba(0, 0, 0, 0.35);
+}
+
+/* ============ Модалка настроек ============ */
+.modal-backdrop {
+  position: fixed; inset: 0;
+  background: color-mix(in srgb, var(--canvas-bg-outer) 80%, transparent);
+  backdrop-filter: blur(14px);
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px; z-index: 200;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.modal-panel {
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 24px;
+  width: 100%;
+  max-width: 380px;
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex; flex-direction: column;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.6);
+  animation: scaleIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.modal-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid color-mix(in srgb, var(--panel-border) 50%, transparent);
+}
+.modal-title { font-size: 20px; font-weight: 800; color: var(--text-primary); }
+.modal-close {
+  position: relative;
+  width: 36px; height: 36px;
+  background: linear-gradient(180deg,
+    rgba(255, 255, 255, 0.08) 0%,
+    rgba(0, 0, 0, 0.2) 100%);
+  border: 1.5px solid color-mix(in srgb, var(--text-hint) 30%, transparent);
+  color: var(--text-secondary);
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow:
+    0 3px 8px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15),
+    inset 0 -1px 2px rgba(0, 0, 0, 0.2);
+  transition: transform 0.12s cubic-bezier(0.34, 1.56, 0.64, 1),
+              background 0.2s;
+}
+.modal-close:hover {
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--accent) 25%, transparent) 0%,
+    color-mix(in srgb, var(--accent) 8%, rgba(0,0,0,0.2)) 100%);
+  color: var(--text-primary);
+  border-color: color-mix(in srgb, var(--accent-secondary) 40%, transparent);
+}
+.modal-close:active {
+  transform: translateY(1px) scale(0.93);
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.3),
+    inset 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.modal-body {
+  padding: 20px 24px 24px;
+  overflow-y: auto;
+}
+
+.setting-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--panel-border) 30%, transparent);
+}
+.setting-row.column { flex-direction: column; align-items: stretch; gap: 12px; }
+.setting-row:last-of-type { border-bottom: none; }
+.setting-label { font-size: 15px; color: var(--text-primary); font-weight: 600; }
+
+/* Язык переключатель — углублённый контейнер с приподнятой активной кнопкой */
+.lang-toggle {
+  display: flex;
+  background: linear-gradient(180deg,
+    rgba(0, 0, 0, 0.35) 0%,
+    rgba(0, 0, 0, 0.15) 100%);
+  border: 1px solid color-mix(in srgb, var(--accent-secondary) 20%, transparent);
+  border-radius: 100px;
+  padding: 4px;
+  gap: 2px;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.35);
+}
+.lang-btn {
+  position: relative;
+  background: transparent;
+  border: 2px solid transparent;
+  padding: 7px 18px;
+  border-radius: 100px;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: var(--text-hint);
+  cursor: pointer;
+  transition: all 0.2s;
+  overflow: hidden;
+  isolation: isolate;
+}
+.lang-btn.active {
+  background: var(--cta-gradient);
+  color: #fff;
+  border-color: color-mix(in srgb, white 30%, transparent);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  box-shadow:
+    0 4px 10px color-mix(in srgb, var(--accent) 40%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.2);
+}
+.lang-btn.active::before {
+  content: '';
+  position: absolute;
+  top: 1px; left: 1px; right: 1px;
+  height: 50%;
+  background: linear-gradient(180deg, rgba(255,255,255,0.30), transparent);
+  border-radius: 100px 100px 100% 100%;
+  pointer-events: none;
+}
+.lang-btn:not(.active):active { transform: scale(0.96); }
+
+/* Тогглер 3D */
+.toggle {
+  width: 52px; height: 30px;
+  background: linear-gradient(180deg,
+    rgba(0, 0, 0, 0.45) 0%,
+    rgba(0, 0, 0, 0.25) 100%);
+  border: 1.5px solid color-mix(in srgb, var(--text-hint) 25%, transparent);
+  border-radius: 100px;
+  position: relative;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.4);
+  padding: 0;
+}
+.toggle.on {
+  background: var(--cta-gradient);
+  border-color: color-mix(in srgb, white 35%, transparent);
+  box-shadow:
+    0 0 12px color-mix(in srgb, var(--accent) 50%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.30),
+    inset 0 -1px 2px rgba(0, 0, 0, 0.2);
+}
+.toggle-knob {
+  position: absolute;
+  top: 2px; left: 2px;
+  width: 22px; height: 22px;
+  background:
+    radial-gradient(circle at 35% 35%, #fff 0%, #d8d8e0 60%, #b0b0c0 100%);
+  border-radius: 50%;
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow:
+    0 3px 6px rgba(0, 0, 0, 0.45),
+    0 1px 2px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    inset 0 -1px 2px rgba(0, 0, 0, 0.15);
+}
+.toggle.on .toggle-knob {
+  transform: translateX(22px);
+  box-shadow:
+    0 3px 8px rgba(0, 0, 0, 0.45),
+    0 0 8px color-mix(in srgb, var(--accent-secondary) 30%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    inset 0 -1px 2px rgba(0, 0, 0, 0.15);
+}
+.toggle:active .toggle-knob {
+  width: 26px; /* лёгкое растягивание при нажатии */
+}
+
+/* Сетка тем */
+.theme-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.theme-card {
+  background: color-mix(in srgb, var(--accent) 5%, transparent);
+  border: 2px solid transparent;
+  border-radius: 14px;
+  padding: 12px;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.2s;
+  color: var(--text-primary);
+}
+.theme-card.active {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+}
+.theme-card:active { transform: scale(0.97); }
+.theme-swatch {
+  display: flex;
+  height: 28px;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 8px;
+  border: 1px solid color-mix(in srgb, var(--text-hint) 20%, transparent);
+}
+.theme-swatch > div { flex: 1; }
+.theme-name { font-size: 12px; font-weight: 600; }
+
+/* Кнопки действий */
+.setting-actions {
+  display: flex; flex-direction: column; gap: 8px;
+  margin-top: 16px;
+}
+.action-btn {
+  position: relative;
+  display: flex; align-items: center; gap: 12px;
+  background:
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--accent) 22%, transparent) 0%,
+      color-mix(in srgb, var(--accent) 8%, rgba(0,0,0,0.25)) 100%);
+  border: 1.5px solid color-mix(in srgb, var(--accent-secondary) 35%, transparent);
+  color: var(--text-primary);
+  padding: 14px 18px;
+  border-radius: 14px;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  text-align: left;
+  box-shadow:
+    0 6px 14px rgba(0, 0, 0, 0.28),
+    0 2px 4px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 color-mix(in srgb, white 25%, transparent),
+    inset 0 -3px 6px rgba(0, 0, 0, 0.22);
+  overflow: hidden;
+  isolation: isolate;
+  transition: transform 0.12s cubic-bezier(0.34, 1.56, 0.64, 1),
+              box-shadow 0.2s ease;
+}
+.action-btn::before {
+  content: '';
+  position: absolute;
+  top: 1px; left: 1px; right: 1px;
+  height: 45%;
+  background: linear-gradient(180deg, rgba(255,255,255,0.20), transparent);
+  border-radius: 13px 13px 70% 70% / 13px 13px 100% 100%;
+  pointer-events: none;
+}
+.action-btn:active {
+  transform: translateY(2px) scale(0.98);
+  box-shadow:
+    0 2px 6px rgba(0, 0, 0, 0.3),
+    inset 0 3px 8px rgba(0, 0, 0, 0.3);
+}
+.action-btn > span {
+  font-size: 18px;
+  position: relative;
+  z-index: 1;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4));
+}
+
+/* Confirm */
+.confirm-panel {
+  max-width: 320px;
+  text-align: center;
+  padding: 28px 24px;
+}
+.confirm-text {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 24px;
+}
+.confirm-buttons { display: flex; gap: 12px; }
+.confirm-btn {
+  position: relative;
+  flex: 1;
+  padding: 14px;
+  border-radius: 14px;
+  border: 2px solid color-mix(in srgb, white 25%, transparent);
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  overflow: hidden;
+  isolation: isolate;
+  transition: transform 0.12s cubic-bezier(0.34, 1.56, 0.64, 1),
+              box-shadow 0.2s ease;
+}
+.confirm-btn::before {
+  content: '';
+  position: absolute;
+  top: 1px; left: 1px; right: 1px;
+  height: 50%;
+  background: linear-gradient(180deg, rgba(255,255,255,0.30), transparent);
+  border-radius: 12px 12px 80% 80% / 12px 12px 100% 100%;
+  pointer-events: none;
+}
+.confirm-btn.no {
+  background:
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--text-hint) 50%, transparent) 0%,
+      color-mix(in srgb, var(--text-hint) 20%, rgba(0,0,0,0.4)) 100%);
+  color: var(--text-primary);
+  border-color: color-mix(in srgb, var(--text-hint) 40%, transparent);
+  box-shadow:
+    0 6px 14px rgba(0, 0, 0, 0.3),
+    inset 0 2px 0 rgba(255, 255, 255, 0.20),
+    inset 0 -3px 6px rgba(0, 0, 0, 0.25);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+.confirm-btn.yes {
+  background: var(--cta-gradient);
+  color: #fff;
+  border-color: color-mix(in srgb, white 35%, transparent);
+  text-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.5),
+    0 0 8px color-mix(in srgb, var(--accent-secondary) 35%, transparent);
+  box-shadow:
+    0 8px 18px color-mix(in srgb, var(--accent) 45%, transparent),
+    0 3px 6px rgba(0, 0, 0, 0.3),
+    inset 0 2px 0 rgba(255, 255, 255, 0.35),
+    inset 0 -3px 6px rgba(0, 0, 0, 0.25);
+}
+.confirm-btn:active {
+  transform: translateY(2px) scale(0.97);
+  box-shadow:
+    0 2px 6px rgba(0, 0, 0, 0.3),
+    inset 0 3px 6px rgba(0, 0, 0, 0.3);
+}
+
+/* About */
+.about-body { text-align: center; }
+.about-logo {
+  font-size: 48px;
+  margin-bottom: 8px;
+}
+.about-title {
+  font-size: 22px;
+  font-weight: 900;
+  background: linear-gradient(135deg, var(--accent-secondary), var(--accent));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 16px;
+}
+.about-text {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: 24px;
+}
+.about-meta {
+  display: flex; flex-direction: column; gap: 8px;
+  background: color-mix(in srgb, var(--accent) 5%, transparent);
+  border-radius: 12px;
+  padding: 14px 16px;
+  text-align: left;
+  font-size: 13px;
+  color: var(--text-primary);
+}
+.about-meta span { color: var(--text-hint); margin-right: 8px; }
+
+/* ============================================================
+   ПРОГРЕСС И РАЗБЛОКИРОВКИ ТЕМ
+   ============================================================ */
+
+/* Баннер прогресса в меню */
+.menu-progress {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border: 1px solid var(--panel-border);
+  padding: 8px 16px;
+  border-radius: 100px;
+  margin-bottom: 20px;
+  font-size: 13px;
+}
+.menu-progress-label {
+  color: var(--text-hint);
+  font-weight: 600;
+}
+.menu-progress-value {
+  color: var(--accent-secondary);
+  font-weight: 800;
+  font-size: 15px;
+}
+
+/* Баннер прогресса в настройках */
+.progress-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border: 1px solid var(--panel-border);
+  border-radius: 14px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+}
+.progress-banner-label {
+  font-size: 12px;
+  color: var(--text-hint);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+}
+.progress-banner-value {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--accent-secondary);
+}
+
+/* Заблокированная карточка темы */
+.theme-card.locked {
+  cursor: pointer;
+  position: relative;
+}
+.theme-card.locked .theme-swatch > div {
+  filter: grayscale(60%) brightness(0.55);
+}
+.theme-card.locked .theme-name {
+  color: var(--text-hint);
+}
+.theme-card.locked:active {
+  animation: shake 0.3s ease-in-out;
+}
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+
+/* Overlay-замок поверх свотча */
+.theme-lock-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  border-radius: inherit;
+}
+
+/* Свотч у заблокированной — нужно position для overlay */
+.theme-swatch {
+  position: relative;
+}
+
+/* Прогресс-бар внутри карточки заблокированной темы */
+.theme-progress {
+  height: 4px;
+  background: color-mix(in srgb, var(--text-hint) 20%, transparent);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-top: 6px;
+}
+.theme-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 4px;
+  transition: width 0.4s ease;
+}
+.theme-need {
+  font-size: 10px;
+  color: var(--text-hint);
+  font-family: "SF Mono", Menlo, monospace;
+  margin-top: 4px;
+  font-weight: 600;
+}
+
+/* Полоска прогресса в Game Over */
+.total-progress {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 20px;
+  padding: 10px 14px;
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  border-radius: 12px;
+  font-size: 13px;
+}
+.total-progress-label { color: var(--text-hint); font-weight: 600; }
+.total-progress-value {
+  color: var(--accent-secondary);
+  font-weight: 800;
+  font-family: "SF Mono", Menlo, monospace;
+}
+
+/* ============================================================
+   МОДАЛКА РАЗБЛОКИРОВКИ
+   ============================================================ */
+.unlock-panel {
+  max-width: 340px;
+  padding: 28px 24px;
+  text-align: center;
+  /* Поверх остальных модалок */
+  animation: unlockIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes unlockIn {
+  0%   { transform: scale(0.7) rotate(-3deg); opacity: 0; }
+  60%  { transform: scale(1.05) rotate(1deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0deg); }
+}
+
+.unlock-title {
+  font-size: 22px;
+  font-weight: 800;
+  margin-bottom: 20px;
+  background: linear-gradient(135deg, var(--accent-secondary), var(--accent));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.unlock-preview {
+  margin-bottom: 24px;
+}
+
+.unlock-swatch {
+  display: flex;
+  height: 72px;
+  border-radius: 14px;
+  overflow: hidden;
+  margin-bottom: 12px;
+  border: 2px solid var(--panel-border);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+}
+.unlock-swatch > div { flex: 1; }
+
+.unlock-name {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.unlock-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+/* ============================================================
+   МЕНЮ-ТАЙЛЫ: Скины и Настройки
+   ============================================================ */
+.menu-tiles {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.menu-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  border: 1px solid var(--panel-border);
+  border-radius: 18px;
+  padding: 16px;
+  cursor: pointer;
+  transition: transform 0.1s, background 0.2s;
+  color: var(--text-primary);
+}
+.menu-tile:active {
+  transform: scale(0.96);
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+}
+.menu-tile-icon {
+  font-size: 28px;
+  margin-bottom: 8px;
+}
+.menu-tile-title {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+}
+.menu-tile-subtitle {
+  font-size: 11px;
+  color: var(--text-hint);
+  font-weight: 600;
+  text-transform: lowercase;
+}
+
+/* ============================================================
+   ЭКРАН СКИНОВ
+   ============================================================ */
+.skins-screen {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+  overflow: hidden;
+}
+.skins-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  position: relative;
+  z-index: 2;
+}
+.skins-back {
+  width: 40px; height: 40px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--hud-wallet);
+  border: 1px solid var(--panel-border);
+  border-radius: 50%;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.skins-back:active { transform: scale(0.92); }
+
+.skins-header-title {
+  flex: 1;
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+.skins-header-progress {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border: 1px solid var(--panel-border);
+  padding: 6px 14px;
+  border-radius: 100px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent-secondary);
+  font-family: "SF Mono", Menlo, monospace;
+}
+
+.skins-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  position: relative;
+  z-index: 2;
+}
+
+.skin-card {
+  display: flex;
+  align-items: stretch;
+  gap: 16px;
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+  border: 2px solid transparent;
+  border-radius: 18px;
+  padding: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
+  color: var(--text-primary);
+}
+.skin-card.active {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  box-shadow: 0 0 30px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+.skin-card.locked {
+  cursor: pointer;
+}
+.skin-card.locked:active {
+  animation: shake 0.3s ease-in-out;
+}
+
+.skin-preview {
+  position: relative;
+  width: 96px;
+  height: 96px;
+  flex-shrink: 0;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid var(--panel-border);
+  display: flex;
+  flex-direction: column;
+}
+.skin-preview > div { flex: 1; }
+.skin-card.locked .skin-preview > div {
+  filter: grayscale(70%) brightness(0.5);
+}
+
+.skin-lock {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.5);
+  color: #fff;
+}
+
+.skin-current-badge {
+  position: absolute;
+  bottom: 6px;
+  left: 6px;
+  right: 6px;
+  background: var(--accent);
+  color: #fff;
+  padding: 3px 8px;
+  border-radius: 8px;
+  font-size: 10px;
+  font-weight: 800;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.skin-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+}
+.skin-name {
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+.skin-card.locked .skin-name { color: var(--text-hint); }
+
+.skin-progress {
+  height: 6px;
+  background: color-mix(in srgb, var(--text-hint) 25%, transparent);
+  border-radius: 6px;
+  overflow: hidden;
+  margin-bottom: 6px;
+}
+.skin-progress-fill {
+  height: 100%;
+  background: var(--cta-gradient);
+  border-radius: 6px;
+  transition: width 0.4s ease;
+}
+.skin-need {
+  font-size: 11px;
+  color: var(--text-hint);
+  font-family: "SF Mono", Menlo, monospace;
+  font-weight: 600;
+}
+.skin-unlocked-mark {
+  font-size: 12px;
+  font-weight: 700;
+  color: #4ade80;
+}
+
+/* ============================================================
+   КНОПКА ПАУЗЫ В HUD
+   ============================================================ */
+.hud-pause { color: var(--text-secondary); }
+
+/* ============================================================
+   МОДАЛКА ПАУЗЫ
+   ============================================================ */
+.pause-panel {
+  max-width: 320px;
+  padding: 28px 24px;
+  text-align: center;
+}
+
+.pause-icon {
+  display: flex;
+  justify-content: center;
+  color: var(--accent-secondary);
+  margin-bottom: 8px;
+  filter: drop-shadow(0 0 20px color-mix(in srgb, var(--accent-secondary) 50%, transparent));
+}
+
+.pause-title {
+  font-size: 26px;
+  font-weight: 800;
+  margin-bottom: 24px;
+  background: linear-gradient(135deg, var(--accent-secondary), var(--accent));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.pause-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.pause-action {
+  justify-content: center;
+  text-align: center;
+  font-size: 15px;
+  padding: 14px 16px;
+}
+
+/* ============================================================
+   ВТОРИЧНАЯ КНОПКА (для game over: "выйти в меню")
+   ============================================================ */
+.btn-secondary {
+  width: 100%;
+  margin-top: 10px;
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--panel-border);
+  padding: 14px 24px;
+  border-radius: 14px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.btn-secondary:active {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+/* ============================================================
+   ПРЕМИУМ-МЕНЮ
+   ============================================================ */
+
+/* Третья сфера для более богатой атмосферы */
+.menu-glow-3 {
+  width: 200px; height: 200px;
+  background: var(--accent-secondary);
+  top: 40%; left: 50%;
+  transform: translate(-50%, -50%);
+  opacity: 0.18;
+  filter: blur(100px);
+  animation: float-3 14s ease-in-out infinite;
+  position: absolute;
+  border-radius: 50%;
+  z-index: 0;
+  pointer-events: none;
+}
+@keyframes float-3 {
+  0%, 100% { transform: translate(-50%, -50%) scale(1); }
+  50%      { transform: translate(-50%, -50%) scale(1.2); }
+}
+
+/* Парящие монеты на фоне */
+.floating-coins {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 0;
+}
+.floating-coin {
+  position: absolute;
+  opacity: 0.08;
+  filter: blur(1.5px);
+  animation: float-coin linear infinite;
+  will-change: transform;
+}
+@keyframes float-coin {
+  0%   { transform: translateY(0) rotate(0deg); }
+  50%  { transform: translateY(-30px) rotate(180deg); }
+  100% { transform: translateY(0) rotate(360deg); }
+}
+
+/* Hero-секция */
+.menu-hero {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.menu-logo-wrap {
+  position: relative;
+  width: 140px;
+  height: 140px;
+  margin: 0 auto 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.menu-logo-halo {
+  position: absolute;
+  inset: -20%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--accent-secondary) 60%, transparent) 0%, transparent 60%);
+  border-radius: 50%;
+  animation: halo-pulse 3s ease-in-out infinite;
+}
+@keyframes halo-pulse {
+  0%, 100% { opacity: 0.6; transform: scale(1); }
+  50%      { opacity: 1;   transform: scale(1.1); }
+}
+.menu-logo-img {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  z-index: 1;
+  filter: drop-shadow(0 8px 30px color-mix(in srgb, var(--accent-secondary) 50%, transparent));
+  animation: logo-bob 4s ease-in-out infinite;
+}
+@keyframes logo-bob {
+  0%, 100% { transform: translateY(0) rotate(-3deg); }
+  50%      { transform: translateY(-6px) rotate(3deg); }
+}
+
+.menu-brand {
+  font-size: 34px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  background: linear-gradient(135deg, var(--accent-secondary) 0%, var(--accent) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 4px;
+  text-shadow: 0 0 40px color-mix(in srgb, var(--accent-secondary) 30%, transparent);
+}
+
+.menu-tagline {
+  font-size: 14px;
+  color: var(--text-secondary);
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  opacity: 0.85;
+}
+
+/* Прогресс-чип в hero */
+.hero-progress {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 8px;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  border: 1px solid var(--panel-border);
+  padding: 8px 18px;
+  border-radius: 100px;
+  margin-bottom: 18px;
+  backdrop-filter: blur(8px);
+}
+.hero-progress-label {
+  font-size: 11px;
+  color: var(--text-hint);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 700;
+}
+.hero-progress-value {
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--accent-secondary);
+  font-family: "SF Mono", Menlo, monospace;
+}
+
+/* Эволюционная лестница монет — все 22 монеты с автопрокруткой */
+.evolution-strip {
+  position: relative;
+  background: linear-gradient(135deg,
+    color-mix(in srgb, var(--accent) 12%, transparent) 0%,
+    rgba(0, 0, 0, 0.35) 100%);
+  border: 1.5px solid color-mix(in srgb, var(--accent-secondary) 35%, transparent);
+  border-radius: 18px;
+  padding: 14px 0;
+  margin-bottom: 22px;
+  overflow: hidden;            /* критично: marquee выходит за границы */
+  box-shadow: 0 4px 16px rgba(0,0,0,0.25),
+              inset 0 1px 0 color-mix(in srgb, var(--accent-secondary) 18%, transparent);
+}
+.evolution-strip::before {
+  content: '';
+  position: absolute;
+  top: -1px; left: 20%; right: 20%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent-secondary), transparent);
+}
+/* Затухание по краям — fade-out маска */
+.evolution-strip::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(90deg,
+    rgba(0, 0, 0, 0.6) 0%,
+    transparent 8%,
+    transparent 92%,
+    rgba(0, 0, 0, 0.6) 100%);
+}
+
+/* Marquee-контейнер: два track'а подряд, плавная прокрутка */
+.evolution-marquee {
+  display: flex;
+  width: max-content;
+  animation: evolution-scroll 60s linear infinite;
+}
+
+@keyframes evolution-scroll {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }   /* -50% = сдвиг на ширину одного track'а из двух */
+}
+
+.evolution-track {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 8px;
+  flex-shrink: 0;
+}
+.evolution-coin-wrap {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.evolution-coin-wrap img {
+  filter: drop-shadow(0 2px 6px rgba(0,0,0,0.45));
+  transition: transform 0.2s;
+}
+.evolution-coin-wrap:hover img {
+  transform: scale(1.15);
+}
+.evolution-arrow {
+  color: var(--accent-secondary);
+  font-size: 14px;
+  font-weight: 700;
+  opacity: 0.55;
+  margin: 0 2px;
+}
+/* Разделитель между default и alt наборами */
+.evolution-divider {
+  color: var(--accent);
+  font-size: 18px;
+  font-weight: 800;
+  opacity: 0.5;
+  margin: 0 14px;
+  user-select: none;
+}
+
+/* Тайлы — премиум-вид */
+.menu-tiles {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+.menu-tile {
+  display: block;
+  background: linear-gradient(135deg,
+    color-mix(in srgb, var(--accent) 14%, transparent) 0%,
+    color-mix(in srgb, var(--accent) 6%, transparent) 100%);
+  border: 1px solid var(--panel-border);
+  border-radius: 18px;
+  padding: 14px 16px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  color: var(--text-primary);
+  text-align: left;
+  position: relative;
+  overflow: hidden;
+}
+.menu-tile::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--accent-secondary) 60%, transparent), transparent);
+}
+.menu-tile:active {
+  transform: scale(0.96);
+  background: linear-gradient(135deg,
+    color-mix(in srgb, var(--accent) 22%, transparent) 0%,
+    color-mix(in srgb, var(--accent) 12%, transparent) 100%);
+}
+.menu-tile-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.tile-icon {
+  width: 28px; height: 28px;
+  color: var(--accent-secondary);
+  flex-shrink: 0;
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--accent-secondary) 50%, transparent));
+}
+.menu-tile-meta {
+  min-width: 0;
+  flex: 1;
+}
+.menu-tile-title {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+}
+.menu-tile-subtitle {
+  font-size: 11px;
+  color: var(--text-hint);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ============================================================
+   HUD: блок NEXT и баннер комбо
+   ============================================================ */
+.hud-left {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.hud-next {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.hud-next-coin {
+  width: 40px;
+  height: 40px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border: 1px solid var(--panel-border);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+.hud-next-coin img {
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.4));
+}
+
+.combo-banner {
+  position: fixed;
+  top: 30%;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 14px 26px;
+  background: linear-gradient(135deg, var(--accent-secondary), var(--accent));
+  border-radius: 100px;
+  z-index: 50;
+  pointer-events: none;
+  box-shadow: 0 20px 60px color-mix(in srgb, var(--accent) 50%, transparent);
+  animation: comboIn 1s cubic-bezier(0.34, 1.8, 0.64, 1) forwards;
+}
+.combo-x {
+  font-size: 32px;
+  font-weight: 900;
+  color: #fff;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  font-family: "SF Pro Display", -apple-system, sans-serif;
+}
+.combo-text {
+  font-size: 14px;
+  font-weight: 800;
+  color: rgba(255,255,255,0.9);
+  letter-spacing: 0.15em;
+}
+@keyframes comboIn {
+  0%   { opacity: 0; transform: translateX(-50%) scale(0.6) rotate(-8deg); }
+  30%  { opacity: 1; transform: translateX(-50%) scale(1.1) rotate(2deg); }
+  60%  { transform: translateX(-50%) scale(1) rotate(0deg); }
+  100% { opacity: 0; transform: translateX(-50%) scale(0.95) translateY(-20px); }
+}
+
+/* ============================================================
+   ТАЙЛЫ 3-В-РЯД (Скины / Об игре / Настройки)
+   ============================================================ */
+.menu-tiles-3 {
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+}
+.menu-tiles-3 .menu-tile {
+  padding: 14px 10px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.menu-tiles-3 .tile-icon {
+  width: 24px;
+  height: 24px;
+  margin-bottom: 2px;
+}
+.menu-tiles-3 .menu-tile-title {
+  font-size: 13px;
+  font-weight: 800;
+}
+.menu-tiles-3 .menu-tile-subtitle {
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: normal;
+}
+
+/* ============================================================
+   ЭКРАН ОБ ИГРЕ
+   ============================================================ */
+.about-screen {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+  overflow: hidden;
+}
+.about-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  position: relative;
+  z-index: 2;
+}
+.about-header-title {
+  flex: 1;
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+.about-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 20px 32px;
+  position: relative;
+  z-index: 2;
+}
+
+.about-hero {
+  text-align: center;
+  margin-bottom: 24px;
+  padding: 20px 0;
+}
+.about-hero-logo {
+  width: 96px;
+  height: 96px;
+  filter: drop-shadow(0 8px 30px color-mix(in srgb, var(--accent-secondary) 50%, transparent));
+  animation: logo-bob 4s ease-in-out infinite;
+  margin-bottom: 12px;
+}
+/* Полный лого NACKL MERGE с короной и банкой — крупнее */
+.about-hero-logo-full {
+  width: 180px;
+  height: 180px;
+  filter:
+    drop-shadow(0 8px 24px rgba(255, 180, 40, 0.45))
+    drop-shadow(0 0 40px rgba(255, 100, 40, 0.25));
+}
+.about-hero-brand {
+  font-size: 24px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  background: linear-gradient(135deg, var(--accent-secondary), var(--accent));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 4px;
+}
+.about-hero-tag {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.about-card {
+  background: linear-gradient(135deg,
+    color-mix(in srgb, var(--accent) 12%, transparent) 0%,
+    color-mix(in srgb, var(--accent) 4%, transparent) 100%);
+  border: 1px solid var(--panel-border);
+  border-radius: 18px;
+  padding: 18px;
+  margin-bottom: 12px;
+  position: relative;
+  overflow: hidden;
+}
+.about-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--accent-secondary) 50%, transparent), transparent);
+}
+.about-card-icon {
+  width: 44px;
+  height: 44px;
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent-secondary);
+  margin-bottom: 12px;
+  filter: drop-shadow(0 0 12px color-mix(in srgb, var(--accent-secondary) 40%, transparent));
+}
+.about-card-title {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+.about-card-text {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.55;
+  font-weight: 500;
+}
+.about-steps {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  counter-reset: step;
+}
+.about-steps li {
+  position: relative;
+  padding: 8px 0 8px 36px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  font-weight: 500;
+}
+.about-steps li::before {
+  counter-increment: step;
+  content: counter(step);
+  position: absolute;
+  left: 0;
+  top: 8px;
+  width: 24px;
+  height: 24px;
+  background: var(--cta-gradient);
+  color: #fff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+/* Карточка автомайнинга — отдельная стилизация */
+.about-card-soon {
+  background: linear-gradient(135deg,
+    color-mix(in srgb, var(--accent-secondary) 18%, transparent) 0%,
+    color-mix(in srgb, var(--accent) 8%, transparent) 100%);
+  border-color: color-mix(in srgb, var(--accent-secondary) 50%, transparent);
+}
+.about-card-badge {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  background: var(--cta-gradient);
+  color: #fff;
+  padding: 4px 10px;
+  border-radius: 100px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 50%, transparent);
+}
+.about-automining-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin-top: 16px;
+  padding: 14px;
+  background: rgba(0,0,0,0.25);
+  border-radius: 14px;
+}
+.about-automining-price {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+.price-value {
+  font-size: 28px;
+  font-weight: 900;
+  color: var(--accent-secondary);
+  font-family: "SF Pro Display", -apple-system, sans-serif;
+}
+.price-currency {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text-secondary);
+}
+.about-automining-arrow {
+  font-size: 22px;
+  color: var(--text-hint);
+}
+.about-automining-time {
+  font-size: 13px;
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+.about-meta-row {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+}
+.about-meta-item {
+  flex: 1;
+  background: rgba(0,0,0,0.2);
+  border: 1px solid color-mix(in srgb, var(--panel-border) 50%, transparent);
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+.about-meta-label {
+  font-size: 10px;
+  color: var(--text-hint);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+.about-meta-value {
+  font-size: 14px;
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+/* ============================================================
+   ДЕЙСТВИЕ-КНОПКА С ОПАСНЫМ АКЦЕНТОМ
+   ============================================================ */
+.action-btn-danger {
+  color: #ffbcbc;
+  border-color: rgba(255, 100, 100, 0.5);
+  background: linear-gradient(180deg,
+    rgba(255, 80, 80, 0.30) 0%,
+    rgba(180, 30, 30, 0.20) 100%);
+  text-shadow: 0 1px 3px rgba(80, 0, 0, 0.6);
+  box-shadow:
+    0 6px 14px rgba(255, 80, 80, 0.25),
+    0 2px 4px rgba(0, 0, 0, 0.25),
+    inset 0 1px 0 rgba(255, 200, 200, 0.25),
+    inset 0 -3px 6px rgba(80, 0, 0, 0.3);
+}
+.action-btn-danger:hover {
+  background: linear-gradient(180deg,
+    rgba(255, 100, 100, 0.40) 0%,
+    rgba(200, 40, 40, 0.25) 100%);
+}
+.action-btn-danger:active {
+  transform: translateY(2px) scale(0.98);
+  box-shadow:
+    0 2px 5px rgba(255, 80, 80, 0.2),
+    inset 0 3px 6px rgba(60, 0, 0, 0.4);
+}
+
+/* ============================================================
+   ФИРМЕННОЕ ПРЕДСТАВЛЕНИЕ NACKL + ACKI MERGE НА ГЛАВНОЙ
+   ============================================================ */
+.menu-hero-logo-wrap {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  margin: 0 auto 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.menu-hero-halo {
+  position: absolute;
+  inset: -25%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--accent-secondary) 55%, transparent) 0%, transparent 60%);
+  border-radius: 50%;
+  animation: halo-pulse 3.5s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes halo-pulse {
+  0%, 100% { opacity: 0.55; transform: scale(1); }
+  50%      { opacity: 1;    transform: scale(1.08); }
+}
+.menu-hero-nackl {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  z-index: 1;
+  filter: drop-shadow(0 8px 24px color-mix(in srgb, var(--accent-secondary) 50%, transparent));
+  animation: logo-bob 4s ease-in-out infinite;
+}
+@keyframes logo-bob {
+  0%, 100% { transform: translateY(0) rotate(-2deg); }
+  50%      { transform: translateY(-4px) rotate(2deg); }
+}
+.menu-hero-brand {
+  font-family: 'Fredoka', 'Inter', sans-serif;
+  font-size: 36px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  background: linear-gradient(135deg, var(--accent-secondary) 0%, var(--accent) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 4px;
+}
+
+/* ============================================================
+   КНОПКИ ПОДДЕРЖКИ АВТОРА (в About)
+   ============================================================ */
+.about-card-support {
+  background: linear-gradient(135deg,
+    color-mix(in srgb, var(--accent-secondary) 14%, transparent) 0%,
+    color-mix(in srgb, var(--accent) 6%, transparent) 100%);
+  border-color: color-mix(in srgb, var(--accent-secondary) 40%, transparent);
+}
+.support-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 16px;
+}
+.support-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 12px;
+  border-radius: 14px;
+  font-size: 13px;
+  font-weight: 800;
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform 0.1s, filter 0.2s;
+  border: none;
+  letter-spacing: 0.01em;
+}
+.support-btn:active { transform: scale(0.96); }
+.support-btn-channel {
+  background: linear-gradient(135deg, #229ED9 0%, #0d6aa3 100%);
+  color: #fff;
+  box-shadow: 0 6px 18px rgba(34, 158, 217, 0.35);
+}
+.support-btn-farcaster {
+  background: linear-gradient(135deg, #8a63d2 0%, #5a3a9a 100%);
+  color: #fff;
+  box-shadow: 0 6px 18px rgba(138, 99, 210, 0.35);
+}
+.support-btn-donate {
+  background: var(--cta-gradient);
+  color: #fff;
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--accent) 40%, transparent);
+}
+
+/* ============================================================
+   МИКРО-АНИМАЦИИ И ПОЛИРОВКА UX
+   ============================================================ */
+
+/* Все кнопки получают мягкое подсвечивающее состояние при тапе */
+button {
+  font-family: inherit;
+  transition: transform 0.12s cubic-bezier(0.34, 1.56, 0.64, 1),
+              box-shadow 0.2s ease,
+              background 0.2s ease,
+              filter 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Универсальная ripple-волна на тап. Создаётся через ::after с
+   радиальным градиентом, который "съезжает" по кнопке при активации.
+   Работает на любой кнопке БЕЗ переопределения JS. */
+button:not(.toggle):not(.lang-btn):not(.modal-close)::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at var(--ripple-x, 50%) var(--ripple-y, 50%),
+    rgba(255, 255, 255, 0.18) 0%,
+    transparent 50%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s ease;
+}
+button:active:not(.toggle):not(.lang-btn):not(.modal-close)::after {
+  opacity: 1;
+  transition: opacity 0.05s;
+}
+
+/* Пружинная анимация появления экранов */
+.menu-screen,
+.skins-screen,
+.about-screen {
+  animation: screen-in 0.5s cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+@keyframes screen-in {
+  0%   { opacity: 0; transform: translateY(12px) scale(0.98); }
+  60%  { opacity: 1; }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Плавное появление модалок (улучшаем существующее) */
+.modal-backdrop {
+  animation: modal-backdrop-in 0.25s ease;
+}
+@keyframes modal-backdrop-in {
+  from { opacity: 0; backdrop-filter: blur(0); }
+  to   { opacity: 1; backdrop-filter: blur(14px); }
+}
+
+/* Подсветка кнопок-настроек при ховере и тапе */
+.settings-fab {
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.settings-fab:hover {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  border-color: var(--accent);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+.settings-fab:active {
+  transform: scale(0.92) translateY(0);
+}
+
+/* Меню-тайлы — мягкое поднятие при hover на десктопе */
+.menu-tile {
+  transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@media (hover: hover) {
+  .menu-tile:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 24px color-mix(in srgb, var(--accent) 20%, transparent);
+    border-color: var(--accent);
+  }
+  .menu-tile:hover .tile-icon {
+    filter: drop-shadow(0 0 16px color-mix(in srgb, var(--accent-secondary) 80%, transparent));
+    transform: scale(1.05);
+  }
+}
+.tile-icon {
+  transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* CTA-кнопка дышит легче, когда не в hover */
+.menu-cta {
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@media (hover: hover) {
+  .menu-cta:hover:not(:disabled):not(.connecting) {
+    transform: translateY(-2px);
+    filter: brightness(1.08);
+  }
+}
+
+/* Шрифт для крупных заголовков — Fredoka (геометрический) */
+.menu-brand,
+.menu-title,
+.overlay-title,
+.pause-title,
+.about-hero-brand,
+.unlock-title {
+  font-family: 'Fredoka', 'Inter', -apple-system, sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+/* Числовые ценности — табулярные цифры, чтобы они не "прыгали" при изменении */
+.score, .hud-best, .stat-value, .menu-progress-value,
+.hero-progress-value, .skins-header-progress,
+.total-progress-value, .price-value, .skin-need, .theme-need {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+}
+
+/* Плавный переход смены темы — все элементы переключают цвета анимированно */
+.hud-wallet,
+.menu-tile,
+.menu-cta,
+.about-card,
+.modal-panel,
+.skin-card {
+  transition: background 0.3s ease, border-color 0.3s ease, color 0.2s ease;
+}
+
+/* ============================================================
+   ТУТОРИАЛ ПЕРВОГО ЗАПУСКА
+   ============================================================ */
+.tutorial-backdrop {
+  position: fixed;
+  inset: 0;
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--canvas-bg-outer) 92%, transparent) 0%,
+    color-mix(in srgb, var(--canvas-bg-outer) 98%, transparent) 100%);
+  backdrop-filter: blur(20px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 20px 16px;
+  padding-top: calc(60px + env(safe-area-inset-top));
+  padding-bottom: calc(20px + env(safe-area-inset-bottom));
+  z-index: 300;
+  animation: tutorial-in 0.4s ease;
+  /* Скролл когда контент не помещается */
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+@keyframes tutorial-in {
+  from { opacity: 0; backdrop-filter: blur(0); }
+  to   { opacity: 1; backdrop-filter: blur(20px); }
+}
+
+.tutorial-skip {
+  position: absolute;
+  top: calc(20px + env(safe-area-inset-top));
+  right: 20px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-secondary);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 8px 16px;
+  border-radius: 100px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* ============================================================
+   TUTORIAL — новая сцена с настоящей игровой банкой
+   ============================================================ */
+.tutorial-stage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 320px;
+  margin: 0 auto 20px;
+}
+.tutorial-jar-svg {
+  width: 100%;
+  height: auto;
+  max-height: 38vh;
+  filter: drop-shadow(0 12px 40px rgba(255, 180, 60, 0.15));
+}
+
+
+
+.tutorial-card {
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 20px;
+  padding: 20px 18px;
+  text-align: center;
+  max-width: 360px;
+  width: 100%;
+  box-sizing: border-box;
+  box-shadow: 0 24px 60px rgba(0,0,0,0.4),
+              0 0 60px color-mix(in srgb, var(--accent) 15%, transparent);
+}
+
+/* На очень узких экранах ещё компактнее */
+@media (max-width: 380px) {
+  .tutorial-card {
+    padding: 16px 14px;
+  }
+  .tutorial-jar-svg {
+    max-height: 32vh;
+  }
+}
+
+.tutorial-step-badge {
+  display: inline-block;
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--text-secondary);
+  padding: 4px 12px;
+  border-radius: 100px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  margin-bottom: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.tutorial-title {
+  font-family: 'Fredoka', 'Inter', sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.tutorial-text {
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text-secondary);
+  margin-bottom: 16px;
+  font-weight: 500;
+}
+
+.tutorial-dots {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+.tutorial-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.tutorial-dot.active {
+  width: 24px;
+  background: var(--accent-secondary);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--accent-secondary) 50%, transparent);
+}
+
+.tutorial-next {
+  margin: 0;
+  /* Принудительный оранжевый CTA вне зависимости от темы — туториал должен выглядеть одинаково при любой теме */
+  background: linear-gradient(135deg, #ffaa40 0%, #ff6a30 100%) !important;
+  color: #fff !important;
+  box-shadow: 0 8px 22px rgba(255, 140, 50, 0.4) !important;
+}
+
+/* ============================================================
+   БАЛАНС MRG НА ГЛАВНОЙ
+   ============================================================ */
+.menu-balance {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  background: linear-gradient(135deg,
+    color-mix(in srgb, var(--accent-secondary) 22%, transparent) 0%,
+    color-mix(in srgb, var(--accent) 14%, transparent) 100%);
+  border: 1px solid color-mix(in srgb, var(--accent-secondary) 40%, transparent);
+  padding: 10px 20px;
+  border-radius: 100px;
+  margin-bottom: 20px;
+  box-shadow: 0 6px 20px color-mix(in srgb, var(--accent-secondary) 20%, transparent);
+}
+.menu-balance-label {
+  font-size: 10px;
+  color: var(--text-hint);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 700;
+}
+.menu-balance-value {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--accent-secondary);
+  font-family: 'Fredoka', 'Inter', sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+.menu-balance-currency {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--text-secondary);
+  letter-spacing: 0.1em;
+}
+
+/* ============================================================
+   МАГАЗИН
+   ============================================================ */
+.shop-screen {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+  overflow: hidden;
+}
+.shop-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  position: relative;
+  z-index: 2;
+}
+.shop-header-title {
+  flex: 1;
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--text-primary);
+  font-family: 'Fredoka', sans-serif;
+}
+.shop-balance {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  background: color-mix(in srgb, var(--accent-secondary) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent-secondary) 35%, transparent);
+  padding: 6px 14px;
+  border-radius: 100px;
+}
+.shop-balance-value {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--accent-secondary);
+  font-variant-numeric: tabular-nums;
+}
+.shop-balance-currency {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-hint);
+  letter-spacing: 0.05em;
+}
+
+.shop-tabs {
+  display: flex;
+  gap: 8px;
+  padding: 0 20px 16px;
+  position: relative;
+  z-index: 2;
+}
+.shop-tab {
+  flex: 1;
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+  border: 1px solid color-mix(in srgb, var(--panel-border) 60%, transparent);
+  color: var(--text-secondary);
+  padding: 10px 16px;
+  border-radius: 100px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.shop-tab.active {
+  background: var(--cta-gradient);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+.shop-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 14px 32px;
+  position: relative;
+  z-index: 2;
+  box-sizing: border-box;
+  width: 100%;
+}
+.shop-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.shop-card {
+  display: flex;
+  gap: 10px;
+  align-items: stretch;
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+  border: 2px solid color-mix(in srgb, var(--panel-border) 60%, transparent);
+  border-radius: 16px;
+  padding: 10px;
+  transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+}
+.shop-card.active {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  box-shadow: 0 0 30px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+.shop-card.big {
+  flex-direction: column;
+}
+
+.shop-card-preview {
+  position: relative;
+  flex-shrink: 0;
+  width: 72px;
+  height: 72px;
+  overflow: hidden;
+  border-radius: 12px;
+}
+.shop-card-preview > * {
+  width: 100% !important;
+  height: 100% !important;
+}
+.shop-card-swatch {
+  display: flex;
+  flex-direction: column;
+  width: 64px;
+  height: 64px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--panel-border);
+}
+.shop-card-swatch > div { flex: 1; }
+.shop-card-coins {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  align-items: center;
+  padding: 10px;
+  background: rgba(0,0,0,0.2);
+  border-radius: 14px;
+  width: 100%;
+}
+.shop-card-coins img {
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
+}
+
+.shop-card-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+.shop-card-title {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text-primary);
+  word-break: break-word;
+}
+.shop-card-price {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.shop-card-price-value {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--accent-secondary);
+  font-variant-numeric: tabular-nums;
+}
+.shop-card-price-currency {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-hint);
+  letter-spacing: 0.05em;
+}
+
+.shop-card-btn {
+  border: none;
+  padding: 10px 16px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 0.1s, filter 0.2s;
+}
+.shop-card-btn:active:not(.disabled) { transform: scale(0.96); }
+.shop-card-btn-buy {
+  background: var(--cta-gradient);
+  color: #fff;
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+.shop-card-btn-apply {
+  background: color-mix(in srgb, var(--accent) 25%, transparent);
+  color: var(--text-primary);
+  border: 1px solid var(--accent);
+}
+.shop-card-btn.disabled {
+  background: rgba(255, 80, 80, 0.18);
+  color: #ff8a8a;
+  cursor: not-allowed;
+  border: 1px solid rgba(255, 80, 80, 0.3);
+}
+.shop-card-active-label {
+  font-size: 13px;
+  font-weight: 800;
+  color: #4ade80;
+  text-align: right;
+}
+.shop-card-badge-active {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  background: var(--accent);
+  color: #fff;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* ============================================================
+   МАГАЗИН — СЕТКА МОНЕТ ПО УРОВНЯМ
+   ============================================================ */
+.coins-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.coin-level-row {
+  display: grid;
+  grid-template-columns: 32px 1fr 18px 1fr;
+  align-items: center;
+  gap: 8px;
+  background: color-mix(in srgb, var(--accent) 5%, transparent);
+  border: 1px solid color-mix(in srgb, var(--panel-border) 50%, transparent);
+  border-radius: 14px;
+  padding: 10px;
+}
+
+.coin-level-label {
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--text-hint);
+  text-align: center;
+  letter-spacing: 0.05em;
+  font-family: 'Fredoka', sans-serif;
+}
+
+.coin-level-vs {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--text-hint);
+  text-align: center;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  opacity: 0.6;
+}
+
+.coin-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  background: transparent;
+  border: 2px solid transparent;
+  border-radius: 12px;
+  padding: 6px 4px;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  color: var(--text-primary);
+  min-height: 78px;
+}
+.coin-slot.active {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  box-shadow: 0 0 16px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+.coin-slot.locked .coin-slot-img {
+  filter: grayscale(70%) brightness(0.6);
+}
+.coin-slot:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.coin-slot:not(:disabled):active {
+  transform: scale(0.95);
+}
+
+.coin-slot-img {
+  width: 36px;
+  height: 36px;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));
+}
+
+.coin-slot-ticker {
+  font-size: 10px;
+  font-weight: 800;
+  font-family: 'Fredoka', sans-serif;
+  color: var(--text-primary);
+  letter-spacing: 0.05em;
+}
+
+.coin-slot-price {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--accent-secondary);
+  font-variant-numeric: tabular-nums;
+  font-family: 'Fredoka', sans-serif;
+}
+.coin-slot-price.unaffordable { color: #ff6a6a; }
+
+.coin-slot-check {
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  font-size: 11px;
+  color: var(--accent-secondary);
+  font-weight: 900;
+}
+
+/* Тема — карточка для тем (унаследовано но дополняю) */
+.theme-card-swatch {
+  display: flex;
+  flex-direction: column;
+  width: 80px;
+  height: 80px;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid var(--panel-border);
+}
+.theme-card-swatch > div { flex: 1; }
+
+/* HUD: MRG-тикер рядом с цифрами */
+.score-currency {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-hint);
+  letter-spacing: 0.08em;
+  margin-left: 4px;
+  vertical-align: middle;
+}
+
+/* Убираем subtitle из тайлов меню (теперь только иконка + название) */
+.menu-tiles-3 .menu-tile {
+  padding: 18px 10px;
+  gap: 8px;
+}
+.menu-tiles-3 .menu-tile-title {
+  font-size: 13px;
+  font-weight: 800;
+  text-align: center;
+}
+
+/* ============================================================
+   ДЕКОРАТИВНЫЕ ФОНЫ ТЕМ (МЕНЮ)
+   ============================================================ */
+
+.theme-decor {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 0;
+}
+
+/* --- Bubbles (Pastel) --- */
+.bubble {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(2px);
+  animation: bubble-float linear infinite;
+}
+@keyframes bubble-float {
+  0%, 100% { transform: translateY(0) scale(1); opacity: 0.7; }
+  50%      { transform: translateY(-25px) scale(1.05); opacity: 1; }
+}
+
+/* --- NACKL smiles (Acki Nacki) --- */
+.decor-nackl .floating-nackl {
+  position: absolute;
+  opacity: 0.12;
+  filter: drop-shadow(0 0 12px rgba(255, 216, 77, 0.4));
+  animation: nackl-orbit linear infinite;
+}
+@keyframes nackl-orbit {
+  0%, 100% { transform: translateY(0) rotate(-5deg); }
+  50%      { transform: translateY(-20px) rotate(8deg); }
+}
+.halftone-overlay {
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle, rgba(255,216,77,0.06) 1px, transparent 1px);
+  background-size: 16px 16px;
+}
+
+/* --- Свечной график (Биржа) --- */
+.candles-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.5;
+}
+
+/* --- Пицца (Пицца) --- */
+.pizza-slice {
+  position: absolute;
+  opacity: 0.18;
+  filter: drop-shadow(0 4px 12px rgba(255, 107, 53, 0.3));
+  animation: pizza-float linear infinite;
+}
+@keyframes pizza-float {
+  0%, 100% { transform: translateY(0) rotate(var(--rot, 0deg)); }
+  50%      { transform: translateY(-25px) rotate(calc(var(--rot, 0deg) + 20deg)); }
+}
+
+/* --- Matrix rain (Terminal) --- */
+.decor-matrix {
+  background: #000400;
+}
+.matrix-column {
+  position: absolute;
+  top: -100%;
+  color: #00ff80;
+  font-family: 'Courier New', monospace;
+  font-size: 14px;
+  line-height: 1.1;
+  text-shadow: 0 0 6px rgba(0, 255, 80, 0.9);
+  writing-mode: vertical-rl;
+  white-space: nowrap;
+  animation: matrix-fall linear infinite;
+  opacity: 0.5;
+}
+.matrix-column span {
+  display: block;
+  animation: matrix-fade 3s infinite;
+}
+@keyframes matrix-fall {
+  0%   { transform: translateY(0); }
+  100% { transform: translateY(220vh); }
+}
+@keyframes matrix-fade {
+  0%, 100% { opacity: 0.4; }
+  50%      { opacity: 1; color: #80ff40; }
+}
+.crt-scanlines {
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(0,0,0,0.15) 0px,
+    rgba(0,0,0,0.15) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  pointer-events: none;
+}
+
+/* --- Cyberpunk город --- */
+.cyber-city-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.75;
+}
+.cyber-haze {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 50% 60%, rgba(180, 50, 255, 0.22) 0%, transparent 50%),
+    radial-gradient(ellipse at 30% 80%, rgba(190, 255, 50, 0.18) 0%, transparent 60%);
+  animation: cyber-pulse 4s ease-in-out infinite;
+}
+@keyframes cyber-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.6; }
+}
+
+/* --- Bitcoin символы --- */
+.btc-symbol {
+  position: absolute;
+  color: rgba(247, 147, 26, 0.18);
+  font-family: 'Fredoka', 'Inter', sans-serif;
+  font-weight: 900;
+  text-shadow: 0 0 30px rgba(247, 147, 26, 0.4);
+  animation: btc-float linear infinite;
+  user-select: none;
+}
+@keyframes btc-float {
+  0%, 100% { transform: translateY(0) rotate(0deg) scale(1); opacity: 0.8; }
+  50%      { transform: translateY(-15px) rotate(3deg) scale(1.03); opacity: 1; }
+}
+
+/* ============================================================
+   БРЕНДОВАЯ КОМПОЗИЦИЯ НА ГЛАВНОЙ — NACKL С ОРБИТАЛЬНЫМИ СПУТНИКАМИ
+   ============================================================ */
+.brand-stage {
+  position: relative;
+  width: 260px;
+  height: 260px;
+  margin: 8px auto 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Орбитальные кольца — тонкие пунктирные линии */
+.brand-orbit {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+}
+.brand-orbit-outer {
+  width: 240px;
+  height: 240px;
+  border: 1px dashed color-mix(in srgb, var(--accent-secondary) 30%, transparent);
+  animation: orbit-spin 32s linear infinite;
+}
+.brand-orbit-mid {
+  width: 180px;
+  height: 180px;
+  border: 1px dashed color-mix(in srgb, var(--accent) 32%, transparent);
+  animation: orbit-spin-reverse 24s linear infinite;
+}
+.brand-orbit-inner {
+  width: 140px;
+  height: 140px;
+  border: 1px dotted color-mix(in srgb, var(--accent-secondary) 40%, transparent);
+  animation: orbit-spin 18s linear infinite;
+}
+@keyframes orbit-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+@keyframes orbit-spin-reverse {
+  from { transform: rotate(360deg); }
+  to   { transform: rotate(0deg); }
+}
+
+/* Монеты-спутники */
+.brand-satellite {
+  position: absolute;
+  width: 30px;
+  height: 30px;
+  filter: drop-shadow(0 3px 8px rgba(0,0,0,0.55));
+  animation: satellite-counter-spin 32s linear infinite;
+}
+.brand-orbit-mid .brand-satellite {
+  width: 26px;
+  height: 26px;
+  animation: satellite-counter-spin-reverse 24s linear infinite;
+}
+.brand-orbit-inner .brand-satellite {
+  width: 22px;
+  height: 22px;
+  animation: satellite-counter-spin 18s linear infinite;
+}
+
+/* Внешнее кольцо 240px — 6 монет по 60° */
+.outer-sat-1 { left: 105px; top: -15px; }
+.outer-sat-2 { left: 209px; top: 45px; }
+.outer-sat-3 { left: 209px; top: 165px; }
+.outer-sat-4 { left: 105px; top: 225px; }
+.outer-sat-5 { left: 1px; top: 165px; }
+.outer-sat-6 { left: 1px; top: 45px; }
+
+/* Среднее кольцо 180px — 5 монет по 72° (offset 36°) */
+.mid-sat-1 { left: 130px; top: 4px; }
+.mid-sat-2 { left: 163px; top: 105px; }
+.mid-sat-3 { left: 77px; top: 167px; }
+.mid-sat-4 { left: -9px; top: 105px; }
+.mid-sat-5 { left: 24px; top: 4px; }
+
+/* Внутреннее кольцо 140px — 3 монеты по 120° */
+.inner-sat-1 { left: 94px; top: -2px; }
+.inner-sat-2 { left: 94px; top: 120px; }
+.inner-sat-3 { left: -11px; top: 59px; }
+
+@keyframes satellite-counter-spin {
+  from { rotate: 0deg; }
+  to   { rotate: -360deg; }
+}
+@keyframes satellite-counter-spin-reverse {
+  from { rotate: 0deg; }
+  to   { rotate: 360deg; }
+}
+
+/* Центральный NACKL — никаких overflow и круглых обводок */
+.brand-nackl-wrap {
+  position: relative;
+  width: 140px;
+  height: 140px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  overflow: visible;
+}
+/* Halo заменён на мягкое радиальное свечение БЕЗ круглой границы.
+   Используется только цветной glow позади лого, без явных контуров. */
+.brand-nackl-halo {
+  position: absolute;
+  inset: -25%;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--accent-secondary) 45%, transparent) 0%,
+    color-mix(in srgb, var(--accent-secondary) 15%, transparent) 35%,
+    transparent 65%
+  );
+  filter: blur(8px);
+  animation: nackl-halo-pulse 3s ease-in-out infinite;
+  pointer-events: none;
+  /* нет border-radius — это просто мягкое пятно света */
+}
+@keyframes nackl-halo-pulse {
+  0%, 100% { opacity: 0.55; transform: scale(1); }
+  50%      { opacity: 0.9;  transform: scale(1.08); }
+}
+.brand-nackl {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 6px 18px color-mix(in srgb, var(--accent-secondary) 50%, transparent));
+  animation: nackl-bob 5s ease-in-out infinite;
+  position: relative;
+  z-index: 1;
+}
+/* Полный лого NACKL MERGE с короной и банкой — крупнее, без круглого halo */
+.brand-nackl.brand-nackl-full {
+  width: 180%;   /* выходит за brand-nackl-wrap чтобы не казался мелким */
+  height: 180%;
+  position: absolute;
+  inset: -40%;
+  filter:
+    drop-shadow(0 8px 24px rgba(255, 180, 40, 0.45))
+    drop-shadow(0 0 40px rgba(255, 100, 40, 0.25));
+}
+@keyframes nackl-bob {
+  0%, 100% { transform: translateY(0) rotate(-1deg); }
+  50%      { transform: translateY(-3px) rotate(1deg); }
+}
+
+/* Искры */
+.brand-sparkle {
+  position: absolute;
+  color: var(--accent-secondary);
+  font-size: 18px;
+  animation: sparkle-twinkle 2.5s ease-in-out infinite;
+  text-shadow: 0 0 8px currentColor;
+  z-index: 3;
+  pointer-events: none;
+}
+.brand-sparkle.s1 { top: 18%;  left: 18%; animation-delay: 0s; }
+.brand-sparkle.s2 { top: 22%;  right: 18%; animation-delay: 0.8s; font-size: 14px; }
+.brand-sparkle.s3 { bottom: 22%; left: 28%; animation-delay: 1.6s; font-size: 12px; }
+.brand-sparkle.s4 { bottom: 26%; right: 24%; animation-delay: 2.2s; font-size: 13px; }
+@keyframes sparkle-twinkle {
+  0%, 100% { opacity: 0; transform: scale(0.6); }
+  50%      { opacity: 1; transform: scale(1); }
+}
+
+/* Усиленный wordmark под композицией */
+.menu-hero-brand {
+  font-family: 'Fredoka', 'Inter', sans-serif;
+  font-size: 38px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-align: center;
+  background: linear-gradient(135deg,
+    var(--accent-secondary) 0%,
+    var(--accent) 50%,
+    var(--accent-secondary) 100%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 2px;
+  text-shadow: 0 0 40px color-mix(in srgb, var(--accent-secondary) 50%, transparent);
+  animation: brand-shimmer 4s linear infinite;
+}
+@keyframes brand-shimmer {
+  0%   { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+
+/* ============================================================
+   ОЖИВЛЁННЫЙ ДЕКОР — НОВЫЕ ЭЛЕМЕНТЫ
+   ============================================================ */
+
+/* Пастель — звёздочки поверх пузырьков */
+.pastel-star {
+  position: absolute;
+  color: #a685ff;
+  font-size: 16px;
+  text-shadow: 0 0 12px currentColor;
+  animation: star-twinkle 3s ease-in-out infinite;
+}
+@keyframes star-twinkle {
+  0%, 100% { opacity: 0.2; transform: scale(0.7); }
+  50%      { opacity: 1; transform: scale(1.15) rotate(15deg); }
+}
+
+/* Acki Nacki — золотые искры */
+.nackl-spark {
+  position: absolute;
+  color: #ffd84d;
+  font-size: 18px;
+  text-shadow: 0 0 10px currentColor;
+  animation: nackl-spark-twinkle 2.8s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes nackl-spark-twinkle {
+  0%, 100% { opacity: 0; transform: scale(0.5); }
+  50%      { opacity: 1; transform: scale(1.2); }
+}
+
+/* Биржа — летающие проценты */
+.exchange-tick {
+  position: absolute;
+  font-family: 'Fredoka', monospace;
+  font-size: 13px;
+  font-weight: 800;
+  text-shadow: 0 0 8px currentColor;
+  background: rgba(0,0,0,0.4);
+  padding: 3px 8px;
+  border-radius: 4px;
+  border: 1px solid currentColor;
+  animation: tick-float 6s ease-in-out infinite;
+  pointer-events: none;
+  opacity: 0;
+}
+@keyframes tick-float {
+  0%, 100% { opacity: 0; transform: translateY(10px); }
+  20%, 80% { opacity: 0.85; transform: translateY(0); }
+}
+
+/* Пицца — летающие капли (масла/специй) */
+.pizza-drop {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  background: radial-gradient(circle, #ff8a3d, #c83020);
+  border-radius: 50%;
+  box-shadow: 0 0 6px #ff8a3d;
+  animation: drop-float linear infinite;
+  opacity: 0.6;
+}
+@keyframes drop-float {
+  0%   { transform: translateY(0) scale(0.7); opacity: 0; }
+  15%  { opacity: 0.7; }
+  85%  { opacity: 0.7; }
+  100% { transform: translateY(-50px) scale(1.2); opacity: 0; }
+}
+
+/* Cyberpunk — ховеркары (светящиеся линии летящие горизонтально) */
+.cyber-hovercar {
+  position: absolute;
+  height: 2px;
+  border-radius: 2px;
+  pointer-events: none;
+  filter: blur(1px);
+  animation: hovercar-fly linear infinite;
+}
+.cyber-hovercar.c1 {
+  top: 35%;
+  width: 30px;
+  background: linear-gradient(90deg, transparent, #beff32, #beff32 80%, transparent);
+  box-shadow: 0 0 14px #beff32;
+  animation-duration: 6s;
+  animation-delay: 0s;
+}
+.cyber-hovercar.c2 {
+  top: 48%;
+  width: 40px;
+  background: linear-gradient(90deg, transparent, #b432ff, #b432ff 80%, transparent);
+  box-shadow: 0 0 16px #b432ff;
+  animation-duration: 8s;
+  animation-delay: 2s;
+}
+.cyber-hovercar.c3 {
+  top: 62%;
+  width: 25px;
+  background: linear-gradient(90deg, transparent, #beff32, transparent);
+  box-shadow: 0 0 12px #beff32;
+  animation-duration: 5s;
+  animation-delay: 4s;
+}
+@keyframes hovercar-fly {
+  0%   { left: -10%; opacity: 0; }
+  10%  { opacity: 1; }
+  90%  { opacity: 1; }
+  100% { left: 110%; opacity: 0; }
+}
+
+/* Bitcoin — золотые искры */
+.btc-spark {
+  position: absolute;
+  color: #ffd700;
+  font-size: 14px;
+  text-shadow: 0 0 12px currentColor;
+  animation: btc-spark-twinkle 2.5s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes btc-spark-twinkle {
+  0%, 100% { opacity: 0; transform: scale(0.6) rotate(0deg); }
+  50%      { opacity: 1; transform: scale(1.3) rotate(45deg); }
+}
+
+
+/* ============================================================
+   3D-КНОПКИ В СТИЛЕ ПРЕМИУМ-ИГР (Clash Royale / Genshin Impact)
+   ============================================================
+   Что делает кнопку «3D премиум»:
+   1. Вертикальный градиент (светлая верхняя половина → тёмная нижняя)
+   2. Гладкий top-highlight (inset)
+   3. Жёсткая нижняя кромка (как 3D-edge)
+   4. Большая цветная тень-glow под кнопкой (даёт floating-эффект)
+   5. Чёткая внешняя обводка (1-2px)
+   6. Плотный inset-shadow снизу (имитация толщины)
+   7. При нажатии — кнопка «вдавливается» внутрь
+   ============================================================ */
+
+/* === ТАЙЛЫ МЕНЮ — Магазин / Об игре / Настройки === */
+.menu-tile {
+  position: relative;
+  /* Двуслойный градиент: основной цвет сверху → тёмная нижняя половина */
+  background:
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--accent) 45%, transparent) 0%,
+      color-mix(in srgb, var(--accent) 30%, transparent) 45%,
+      color-mix(in srgb, var(--accent) 12%, rgba(0,0,0,0.3)) 50%,
+      color-mix(in srgb, var(--accent) 18%, rgba(0,0,0,0.5)) 100%);
+  /* Толстая 2px обводка */
+  border: 2px solid color-mix(in srgb, var(--accent-secondary) 55%, transparent);
+  border-radius: 20px;
+  padding: 22px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  cursor: pointer;
+  color: var(--text-primary);
+  /* Слои теней: внешняя цветная (glow), inset top highlight, inset bottom shadow */
+  box-shadow:
+    0 10px 24px color-mix(in srgb, var(--accent) 38%, transparent),
+    0 4px 8px rgba(0, 0, 0, 0.35),
+    inset 0 2px 0 color-mix(in srgb, white 30%, transparent),
+    inset 0 -4px 8px rgba(0, 0, 0, 0.45),
+    inset 0 1px 14px color-mix(in srgb, var(--accent-secondary) 12%, transparent);
+  transition: transform 0.12s cubic-bezier(0.34, 1.56, 0.64, 1),
+              box-shadow 0.2s ease;
+  overflow: hidden;
+  /* Изоляция от смешивания с фоном */
+  isolation: isolate;
+}
+
+/* Стеклянный блик на верхней половине */
+.menu-tile::before {
+  content: '';
+  position: absolute;
+  top: 2px; left: 2px; right: 2px;
+  height: 45%;
+  background: linear-gradient(180deg,
+    rgba(255, 255, 255, 0.30) 0%,
+    rgba(255, 255, 255, 0.10) 60%,
+    transparent 100%);
+  border-radius: 18px 18px 80% 80% / 18px 18px 100% 100%;
+  pointer-events: none;
+}
+
+/* Лёгкий цветной бегущий блик */
+.menu-tile::after {
+  content: '';
+  position: absolute;
+  top: 0; bottom: 0;
+  left: -40%;
+  width: 30%;
+  background: linear-gradient(105deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.18) 50%,
+    transparent 100%);
+  transform: skewX(-20deg);
+  animation: tile-shine 5s ease-in-out infinite;
+  pointer-events: none;
+}
+.menu-tile:nth-child(2)::after { animation-delay: 1.6s; }
+.menu-tile:nth-child(3)::after { animation-delay: 3.2s; }
+
+@keyframes tile-shine {
+  0%, 100% { left: -40%; opacity: 0; }
+  40%      { opacity: 1; }
+  60%      { left: 110%; opacity: 1; }
+  61%, 100% { opacity: 0; }
+}
+
+/* Иконка тайла — с цветным glow + контурной тенью */
+.menu-tile .tile-icon {
+  position: relative;
+  z-index: 1;
+  filter:
+    drop-shadow(0 0 16px color-mix(in srgb, var(--accent-secondary) 75%, transparent))
+    drop-shadow(0 3px 5px rgba(0, 0, 0, 0.55));
+  color: white;
+}
+
+.menu-tile .menu-tile-title {
+  position: relative;
+  z-index: 1;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: white;
+  text-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.7),
+    0 0 8px color-mix(in srgb, var(--accent-secondary) 40%, transparent);
+}
+
+/* Нажатие — «вдавливается» */
+.menu-tile:active {
+  transform: translateY(2px) scale(0.97);
+  box-shadow:
+    0 4px 12px color-mix(in srgb, var(--accent) 25%, transparent),
+    0 1px 3px rgba(0, 0, 0, 0.4),
+    inset 0 -1px 0 color-mix(in srgb, white 15%, transparent),
+    inset 0 3px 8px rgba(0, 0, 0, 0.45);
+}
+
+/* === CTA-КНОПКА «ИГРАТЬ» — главная кнопка, самая яркая === */
+.menu-cta {
+  position: relative;
+  background: var(--cta-gradient);
+  border: 2px solid color-mix(in srgb, white 35%, transparent);
+  border-radius: 18px;
+  padding: 20px 24px;
+  font-size: 18px;
+  font-weight: 900;
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.55),
+    0 0 12px color-mix(in srgb, var(--accent-secondary) 50%, transparent);
+  /* Эпическая тень: большой цветной glow + плотная тень снизу + ободок-highlight */
+  box-shadow:
+    0 14px 32px color-mix(in srgb, var(--accent) 60%, transparent),
+    0 6px 14px color-mix(in srgb, var(--accent-secondary) 35%, transparent),
+    0 3px 6px rgba(0, 0, 0, 0.45),
+    inset 0 3px 0 rgba(255, 255, 255, 0.45),
+    inset 0 -5px 10px rgba(0, 0, 0, 0.30),
+    inset 0 0 22px color-mix(in srgb, white 12%, transparent);
+  overflow: hidden;
+  transition: transform 0.12s cubic-bezier(0.34, 1.56, 0.64, 1),
+              box-shadow 0.2s ease;
+  isolation: isolate;
+}
+/* Top gloss */
+.menu-cta::before {
+  content: '';
+  position: absolute;
+  top: 2px; left: 2px; right: 2px;
+  height: 50%;
+  background: linear-gradient(180deg,
+    rgba(255, 255, 255, 0.40) 0%,
+    rgba(255, 255, 255, 0.10) 70%,
+    transparent 100%);
+  border-radius: 16px 16px 80% 80% / 16px 16px 100% 100%;
+  pointer-events: none;
+}
+/* Бегущий блик */
+.menu-cta::after {
+  content: '';
+  position: absolute;
+  top: 0; bottom: 0;
+  left: -40%;
+  width: 35%;
+  background: linear-gradient(105deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.45) 50%,
+    transparent 100%);
+  transform: skewX(-20deg);
+  animation: cta-shine 3.5s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes cta-shine {
+  0%, 100% { left: -40%; opacity: 0; }
+  35%      { opacity: 1; }
+  60%      { left: 130%; opacity: 1; }
+  61%, 100% { opacity: 0; }
+}
+.menu-cta:active:not(:disabled) {
+  transform: translateY(3px) scale(0.97);
+  box-shadow:
+    0 6px 14px color-mix(in srgb, var(--accent) 38%, transparent),
+    0 2px 4px rgba(0, 0, 0, 0.45),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.20),
+    inset 0 4px 10px rgba(0, 0, 0, 0.35);
+}
+
+/* === КНОПКИ В МАГАЗИНЕ — Купить / Применить === */
+.shop-card-btn {
+  position: relative;
+  border-radius: 12px;
+  padding: 10px 18px;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  cursor: pointer;
+  border: 2px solid color-mix(in srgb, white 25%, transparent);
+  color: white;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  box-shadow:
+    0 6px 14px color-mix(in srgb, var(--accent) 32%, transparent),
+    0 2px 4px rgba(0, 0, 0, 0.3),
+    inset 0 2px 0 rgba(255, 255, 255, 0.30),
+    inset 0 -3px 6px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+  isolation: isolate;
+  transition: transform 0.12s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.shop-card-btn::before {
+  content: '';
+  position: absolute;
+  top: 1px; left: 1px; right: 1px;
+  height: 45%;
+  background: linear-gradient(180deg, rgba(255,255,255,0.28), transparent);
+  border-radius: 10px 10px 70% 70% / 10px 10px 100% 100%;
+  pointer-events: none;
+}
+.shop-card-btn:active:not(:disabled) {
+  transform: translateY(2px) scale(0.96);
+  box-shadow:
+    0 2px 6px rgba(0, 0, 0, 0.3),
+    inset 0 3px 6px rgba(0, 0, 0, 0.3);
+}
+
+/* Купить — gradient акцент */
+.shop-card-btn-buy {
+  background: var(--cta-gradient);
+}
+.shop-card-btn-buy.disabled,
+.shop-card-btn-buy:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+/* Применить — выглядит чуть скромнее (выбранный вариант) */
+.shop-card-btn-apply {
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--accent-secondary) 60%, transparent) 0%,
+    color-mix(in srgb, var(--accent-secondary) 30%, transparent) 100%);
+  border-color: color-mix(in srgb, var(--accent-secondary) 70%, transparent);
+}
+
+/* === ТАБЫ МАГАЗИНА — Темы / Монеты === */
+.shop-tab {
+  position: relative;
+  flex: 1;
+  padding: 12px 16px;
+  background: transparent;
+  border: 2px solid transparent;
+  border-radius: 100px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  cursor: pointer;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  transition: all 0.2s ease;
+  overflow: hidden;
+}
+.shop-tab.active {
+  background: var(--cta-gradient);
+  color: white;
+  border-color: color-mix(in srgb, white 30%, transparent);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  box-shadow:
+    0 6px 16px color-mix(in srgb, var(--accent) 45%, transparent),
+    inset 0 2px 0 rgba(255, 255, 255, 0.30),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.25);
+}
+.shop-tab.active::before {
+  content: '';
+  position: absolute;
+  top: 1px; left: 1px; right: 1px;
+  height: 50%;
+  background: linear-gradient(180deg, rgba(255,255,255,0.25), transparent);
+  border-radius: 100px 100px 100% 100%;
+  pointer-events: none;
+}
+
+/* === КНОПКА НАСТРОЕК (FAB) === */
+.settings-fab {
+  position: relative;
+  background:
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--accent) 30%, transparent) 0%,
+      color-mix(in srgb, var(--accent) 12%, rgba(0,0,0,0.3)) 100%);
+  border: 1.5px solid color-mix(in srgb, var(--accent-secondary) 45%, transparent);
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+  isolation: isolate;
+  transition: transform 0.12s ease;
+}
+.settings-fab::before {
+  content: '';
+  position: absolute;
+  inset: 1px;
+  border-radius: inherit;
+  background: linear-gradient(180deg, rgba(255,255,255,0.15), transparent 50%);
+  pointer-events: none;
+}
+.settings-fab:active {
+  transform: scale(0.92);
+}
+
+/* ============================================================
+   🌊 ОКЕАН — переработанный
+   ============================================================ */
+.decor-ocean {
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(64, 220, 255, 0.18) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 100%, rgba(20, 60, 120, 0.5) 0%, transparent 60%),
+    linear-gradient(180deg, rgba(0, 30, 60, 0.45) 0%, rgba(0, 15, 40, 0.6) 100%);
+}
+/* Глубинные пятна */
+.ocean-depth-glow {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(50px);
+  animation: depth-pulse 10s ease-in-out infinite;
+}
+.ocean-depth-glow.d1 {
+  width: 400px; height: 400px;
+  top: 20%; left: -10%;
+  background: radial-gradient(circle, rgba(40, 180, 255, 0.25), transparent 70%);
+}
+.ocean-depth-glow.d2 {
+  width: 350px; height: 350px;
+  bottom: 10%; right: -8%;
+  background: radial-gradient(circle, rgba(120, 80, 255, 0.20), transparent 70%);
+  animation-delay: 3s;
+}
+@keyframes depth-pulse {
+  0%, 100% { opacity: 0.6; }
+  50%      { opacity: 1; }
+}
+/* Световые лучи сверху сквозь воду */
+.ocean-ray {
+  position: absolute;
+  top: -10%;
+  width: 60px;
+  height: 80%;
+  transform-origin: top center;
+  pointer-events: none;
+  mix-blend-mode: screen;
+}
+.ocean-ray.r1 {
+  left: 20%;
+  background: linear-gradient(180deg, rgba(160,255,255,0.25), transparent 80%);
+  transform: rotate(-5deg);
+  animation: ray-sway 8s ease-in-out infinite;
+}
+.ocean-ray.r2 {
+  left: 50%;
+  background: linear-gradient(180deg, rgba(160,255,232,0.20), transparent 70%);
+  transform: rotate(2deg);
+  animation: ray-sway 10s ease-in-out infinite;
+  animation-delay: 2s;
+}
+.ocean-ray.r3 {
+  left: 75%;
+  background: linear-gradient(180deg, rgba(160,255,255,0.22), transparent 75%);
+  transform: rotate(6deg);
+  animation: ray-sway 9s ease-in-out infinite;
+  animation-delay: 4s;
+}
+@keyframes ray-sway {
+  0%, 100% { transform: rotate(var(--rot, 0deg)) translateX(0); opacity: 0.6; }
+  50%      { transform: rotate(calc(var(--rot, 0deg) + 3deg)) translateX(10px); opacity: 1; }
+}
+/* Медузы */
+.ocean-jellyfish {
+  position: absolute;
+  filter: drop-shadow(0 0 20px rgba(64, 220, 255, 0.7));
+  animation: jelly-swim ease-in-out infinite;
+  opacity: 0.85;
+}
+.jelly-small { opacity: 0.5; filter: drop-shadow(0 0 12px rgba(64, 220, 255, 0.5)) blur(0.5px); }
+.jelly-body { animation: jelly-pulse 3s ease-in-out infinite; transform-origin: center 30px; }
+@keyframes jelly-pulse {
+  0%, 100% { transform: scale(1, 1); }
+  50%      { transform: scale(1.08, 0.92); }
+}
+.jelly-tentacles { animation: jelly-tentacle-wave 4s ease-in-out infinite; transform-origin: center 30px; }
+@keyframes jelly-tentacle-wave {
+  0%, 100% { transform: skewX(-2deg); }
+  50%      { transform: skewX(2deg); }
+}
+@keyframes jelly-swim {
+  0%, 100% { transform: translate(0, 0) rotate(-2deg); }
+  50%      { transform: translate(15px, -25px) rotate(2deg); }
+}
+/* Планктон — точечные светящиеся частицы */
+.ocean-plankton {
+  position: absolute;
+  background: radial-gradient(circle, rgba(160, 255, 232, 0.95), rgba(160, 255, 232, 0) 60%);
+  border-radius: 50%;
+  animation: plankton-glow ease-in-out infinite;
+  filter: blur(0.5px);
+}
+@keyframes plankton-glow {
+  0%, 100% { opacity: 0;    transform: scale(0.5); }
+  50%      { opacity: 1;    transform: scale(1.6); }
+}
+/* Пузыри */
+.ocean-bubble {
+  position: absolute;
+  bottom: -20px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.7) 0%, rgba(160, 255, 232, 0.25) 60%, transparent 100%);
+  border: 1px solid rgba(160, 255, 232, 0.55);
+  box-shadow: inset 0 0 6px rgba(160, 255, 232, 0.3);
+  animation: bubble-rise linear infinite;
+}
+@keyframes bubble-rise {
+  0%   { bottom: -10%; opacity: 0; transform: translateX(0) scale(0.8); }
+  10%  { opacity: 0.9; }
+  100% { bottom: 110%; opacity: 0; transform: translateX(-30px) scale(1); }
+}
+
+
+/* ============================================================
+   🇨🇳 КИТАЙ — фонарики, пагода, дракон, бамбук
+   ============================================================ */
+.decor-china {
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(255, 80, 60, 0.30) 0%, transparent 55%),
+    radial-gradient(ellipse at 50% 100%, rgba(80, 10, 20, 0.6) 0%, transparent 60%),
+    linear-gradient(180deg, #2a0608 0%, #1a0410 50%, #0a0204 100%);
+  overflow: hidden;
+}
+/* Красный туман-зарево вверху */
+.cn-red-haze {
+  position: absolute;
+  top: 0;
+  left: 0; right: 0;
+  height: 50%;
+  background: radial-gradient(ellipse at 50% 0%, rgba(255, 60, 40, 0.22) 0%, transparent 60%);
+  animation: cn-haze-pulse 7s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes cn-haze-pulse {
+  0%, 100% { opacity: 0.7; }
+  50%      { opacity: 1; }
+}
+
+/* Луна красно-золотая */
+.cn-moon-glow {
+  position: absolute;
+  top: 5%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 120, 60, 0.30) 0%, transparent 65%);
+  filter: blur(15px);
+  pointer-events: none;
+  animation: cn-moon-pulse 8s ease-in-out infinite;
+}
+.cn-moon {
+  position: absolute;
+  top: 8%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 32%, #ffd060 0%, #ff8030 50%, #b04020 100%);
+  box-shadow:
+    inset -10px -12px 18px rgba(80, 20, 20, 0.5),
+    0 0 40px rgba(255, 120, 60, 0.5);
+  pointer-events: none;
+}
+@keyframes cn-moon-pulse {
+  0%, 100% { opacity: 0.85; transform: translateX(-50%) scale(1); }
+  50%      { opacity: 1;    transform: translateX(-50%) scale(1.05); }
+}
+
+/* Силуэт гор и пагод — нижняя часть */
+.cn-mountains {
+  position: absolute;
+  bottom: 18%;
+  left: 0; right: 0;
+  width: 100%;
+  height: 35%;
+  pointer-events: none;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.5));
+}
+
+/* Бамбуковые заросли по бокам */
+.cn-bamboo {
+  position: absolute;
+  bottom: 0;
+  width: 28%;
+  height: 70%;
+  pointer-events: none;
+  opacity: 0.78;
+  animation: cn-bamboo-sway 6s ease-in-out infinite;
+}
+.cn-bamboo-left  { left: 0; transform-origin: bottom left; }
+.cn-bamboo-right { right: 0; transform-origin: bottom right; animation-delay: 1s; }
+@keyframes cn-bamboo-sway {
+  0%, 100% { transform: rotate(-1.2deg); }
+  50%      { transform: rotate(1.2deg); }
+}
+
+/* Бумажные фонарики */
+.cn-lantern {
+  position: absolute;
+  pointer-events: none;
+  filter: drop-shadow(0 4px 12px rgba(255, 60, 40, 0.5));
+  animation: cn-lantern-sway var(--cn-sway-dur, 5s) ease-in-out infinite;
+  animation-delay: var(--cn-sway-delay, 0s);
+  transform-origin: top center;
+}
+@keyframes cn-lantern-sway {
+  0%, 100% { transform: rotate(-4deg); }
+  50%      { transform: rotate(4deg); }
+}
+.cn-lantern-cord {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 1px;
+  height: 18%;
+  background: linear-gradient(180deg, transparent, rgba(60, 30, 10, 0.7));
+}
+.cn-lantern-top {
+  position: absolute;
+  top: 16%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 30%;
+  height: 8%;
+  background: linear-gradient(180deg, #5a2810 0%, #2a1408 100%);
+  border-radius: 4px 4px 0 0;
+}
+.cn-lantern-body {
+  position: absolute;
+  top: 22%;
+  left: 8%;
+  width: 84%;
+  height: 60%;
+  background:
+    radial-gradient(ellipse at 35% 35%, #ff5040 0%, #d83020 50%, #8a1818 100%);
+  border-radius: 50%;
+  box-shadow:
+    inset 0 -4px 8px rgba(80, 0, 0, 0.5),
+    inset 0 3px 6px rgba(255, 180, 120, 0.4);
+  overflow: hidden;
+}
+.cn-lantern-glow {
+  position: absolute;
+  inset: 25%;
+  background: radial-gradient(circle, rgba(255, 220, 100, 0.7) 0%, transparent 70%);
+  filter: blur(3px);
+  animation: cn-lantern-flicker 2.5s ease-in-out infinite;
+}
+@keyframes cn-lantern-flicker {
+  0%, 100% { opacity: 0.7; }
+  50%      { opacity: 1; }
+}
+.cn-lantern-char {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 50%;
+  color: #f0c040;
+  font-weight: 900;
+  text-shadow: 0 0 6px rgba(0, 0, 0, 0.6);
+  font-family: serif;
+}
+.cn-lantern-band {
+  position: absolute;
+  left: 0; right: 0;
+  height: 6%;
+  background: linear-gradient(180deg, #f0c040 0%, #a07020 100%);
+}
+.cn-band-top    { top: 22%; }
+.cn-band-bottom { bottom: 18%; }
+.cn-lantern-tassel {
+  position: absolute;
+  top: 82%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 18%;
+  height: 18%;
+}
+.cn-tassel-knot {
+  width: 100%;
+  height: 30%;
+  background: #d8a020;
+  border-radius: 50% 50% 30% 30%;
+}
+.cn-tassel-strings {
+  width: 100%;
+  height: 70%;
+  background: repeating-linear-gradient(
+    90deg,
+    #d8a020 0px,
+    #d8a020 1px,
+    transparent 1px,
+    transparent 3px
+  );
+}
+
+/* Иероглифы плавают */
+.cn-char {
+  position: absolute;
+  color: #f0c040;
+  text-shadow: 0 0 12px rgba(240, 192, 64, 0.5), 0 0 6px rgba(255, 60, 40, 0.4);
+  font-family: serif;
+  font-weight: 900;
+  pointer-events: none;
+  opacity: 0;
+  animation: cn-char-drift ease-in-out infinite;
+}
+@keyframes cn-char-drift {
+  0%   { opacity: 0; transform: translateY(20px) scale(0.85); }
+  20%  { opacity: 0.7; }
+  80%  { opacity: 0.7; }
+  100% { opacity: 0; transform: translateY(-40px) scale(1.1); }
+}
+
+/* Лепестки сакуры */
+.cn-petal {
+  position: absolute;
+  top: -20px;
+  filter: drop-shadow(0 0 4px rgba(255, 180, 200, 0.5));
+  animation: cn-petal-fall linear infinite;
+  opacity: 0.9;
+  pointer-events: none;
+}
+@keyframes cn-petal-fall {
+  0%   { top: -5%;  transform: rotate(var(--cn-rot, 0deg)) translateX(0); opacity: 0; }
+  10%  { opacity: 0.9; }
+  90%  { opacity: 0.9; }
+  100% { top: 105%; transform: rotate(calc(var(--cn-rot, 0deg) + 540deg)) translateX(var(--cn-drift, 30px)); opacity: 0; }
+}
+
+/* ============================================================
+   🎃 ХЭЛЛОУИН — переработанный с луной и туманом
+   ============================================================ */
+.decor-halloween {
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(255, 130, 40, 0.15) 0%, transparent 40%),
+    radial-gradient(ellipse at 50% 100%, rgba(80, 30, 130, 0.5) 0%, transparent 60%),
+    linear-gradient(180deg, rgba(10, 5, 25, 0.6) 0%, rgba(20, 8, 35, 0.5) 100%);
+}
+/* Луна — большой холодный диск */
+.halloween-moon {
+  position: absolute;
+  top: 8%;
+  right: 12%;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #fff8e0, #d8c8a0 60%, #a09078 100%);
+  box-shadow:
+    0 0 60px rgba(255, 235, 180, 0.5),
+    0 0 30px rgba(255, 220, 150, 0.4),
+    inset -5px -5px 10px rgba(0, 0, 0, 0.3);
+}
+.halloween-moon::after {
+  /* Кратеры */
+  content: '';
+  position: absolute;
+  top: 30%; left: 25%;
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.12);
+  box-shadow:
+    18px 8px 0 -2px rgba(0, 0, 0, 0.10),
+    -5px 22px 0 -3px rgba(0, 0, 0, 0.12);
+}
+.halloween-moon-glow {
+  position: absolute;
+  top: 4%;
+  right: 8%;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 235, 180, 0.3), transparent 70%);
+  filter: blur(15px);
+  animation: moon-pulse 4s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes moon-pulse {
+  0%, 100% { opacity: 0.6; }
+  50%      { opacity: 1; }
+}
+/* Туман снизу — два слоя */
+.halloween-fog {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 35%;
+  pointer-events: none;
+  filter: blur(12px);
+}
+.halloween-fog.f1 {
+  background: linear-gradient(180deg, transparent, rgba(140, 80, 200, 0.20) 60%, rgba(100, 50, 160, 0.35) 100%);
+  animation: fog-drift 12s ease-in-out infinite;
+}
+.halloween-fog.f2 {
+  background: linear-gradient(180deg, transparent, rgba(255, 100, 40, 0.10) 60%, rgba(255, 80, 0, 0.20) 100%);
+  animation: fog-drift 16s ease-in-out infinite reverse;
+  height: 28%;
+}
+.halloween-star {
+  position: absolute;
+  color: #fff5d0;
+  text-shadow: 0 0 8px #ff8228, 0 0 4px #fff;
+  animation: hl-star-twinkle 3s ease-in-out infinite;
+  opacity: 0;
+}
+@keyframes hl-star-twinkle {
+  0%, 100% { opacity: 0; transform: scale(0.6); }
+  50%      { opacity: 1; transform: scale(1.2); }
+}
+.halloween-pumpkin {
+  position: absolute;
+  filter: drop-shadow(0 8px 20px rgba(255, 100, 0, 0.4)) drop-shadow(0 4px 6px rgba(0, 0, 0, 0.5));
+  animation: pumpkin-breathe ease-in-out infinite;
+}
+@keyframes pumpkin-breathe {
+  0%, 100% { transform: translateY(0) scale(1) rotate(-1deg); }
+  50%      { transform: translateY(-4px) scale(1.02) rotate(1deg); }
+}
+.halloween-bat {
+  position: absolute;
+  filter: drop-shadow(0 0 8px rgba(160, 96, 224, 0.6));
+  animation: bat-glide linear infinite;
+}
+.bat-wings { animation: bat-flap 0.4s ease-in-out infinite; transform-origin: center; }
+@keyframes bat-flap {
+  0%, 100% { transform: scaleY(1); }
+  50%      { transform: scaleY(0.55); }
+}
+@keyframes bat-glide {
+  0%   { left: -10%; }
+  100% { left: 110%; }
+}
+
+/* ============================================================
+   ❄️ CHRISTMAS V2 — реалистичная ночная зима
+   ============================================================
+   Палитра: тёмное звёздное небо с холодным градиентом, силуэты
+   ёлок и домов почти чёрные, тёплые точки света от окон.
+   Слои глубины + воздушная перспектива + мягкий снежный туман.
+   ============================================================ */
+.decor-christmas-v2 {
+  background:
+    radial-gradient(ellipse at 75% 12%, rgba(120,160,220,0.10) 0%, transparent 35%),
+    linear-gradient(180deg,
+      #060a18 0%,
+      #0c1428 18%,
+      #182238 45%,
+      #2c3854 65%,
+      #506890 85%,
+      #c8d8e8 100%);
+  overflow: hidden;
+}
+
+/* Луна — трёхслойная: aura → glow → диск */
+.xm2-moon-aura {
+  position: absolute;
+  top: 4%;
+  right: 8%;
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,245,210,0.15) 0%, transparent 60%);
+  filter: blur(20px);
+  animation: xm2-moon-pulse 6s ease-in-out infinite;
+  pointer-events: none;
+}
+.xm2-moon-glow {
+  position: absolute;
+  top: 8%;
+  right: 12%;
+  width: 130px;
+  height: 130px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,245,210,0.30) 0%, transparent 65%);
+  filter: blur(8px);
+  pointer-events: none;
+}
+.xm2-moon {
+  position: absolute;
+  top: 11%;
+  right: 14%;
+  width: 65px;
+  height: 65px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 32%, #fff8e0 0%, #f0e8c8 45%, #c8c0a0 100%);
+  box-shadow:
+    inset -8px -10px 18px rgba(60,40,20,0.4),
+    0 0 30px rgba(255,235,180,0.4);
+  pointer-events: none;
+}
+.xm2-moon-crater {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.10);
+}
+.xm2-c1 { top: 30%; left: 22%; width: 14%; height: 14%; }
+.xm2-c2 { top: 22%; left: 55%; width: 10%; height: 10%; }
+.xm2-c3 { top: 55%; left: 40%; width: 8%; height: 8%; }
+@keyframes xm2-moon-pulse {
+  0%, 100% { opacity: 0.85; transform: scale(1); }
+  50%      { opacity: 1;    transform: scale(1.04); }
+}
+
+/* Звёзды */
+.xm2-star {
+  position: absolute;
+  background: radial-gradient(circle, white 0%, rgba(255,255,255,0.2) 70%);
+  border-radius: 50%;
+  box-shadow: 0 0 4px rgba(255,255,255,0.7);
+  animation: xm2-star-blink ease-in-out infinite;
+  animation-duration: 3s;
+  pointer-events: none;
+}
+@keyframes xm2-star-blink {
+  0%, 100% { opacity: 0.3; transform: scale(0.8); }
+  50%      { opacity: 1;   transform: scale(1.2); }
+}
+
+/* Тонкое северное сияние */
+.xm2-aurora {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 50%;
+  background:
+    radial-gradient(ellipse at 25% 30%, rgba(100,220,150,0.06) 0%, transparent 50%),
+    radial-gradient(ellipse at 70% 25%, rgba(170,120,220,0.05) 0%, transparent 50%);
+  animation: xm2-aurora-drift 14s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes xm2-aurora-drift {
+  0%, 100% { opacity: 0.6; transform: translateX(-3%); }
+  50%      { opacity: 1;   transform: translateX(3%); }
+}
+
+/* Санта — плавно летит */
+.xm2-santa {
+  position: absolute;
+  top: 12%;
+  left: -300px;
+  width: 280px;
+  height: 90px;
+  pointer-events: none;
+  filter: drop-shadow(0 6px 12px rgba(0,0,0,0.55));
+  animation: xm2-santa-fly 28s linear infinite;
+}
+.xm2-santa svg { width: 100%; height: 100%; }
+@keyframes xm2-santa-fly {
+  0%   { left: -260px; transform: translateY(0); }
+  20%  { transform: translateY(-12px); }
+  45%  { transform: translateY(6px); }
+  70%  { transform: translateY(-10px); }
+  100% { left: 110%; transform: translateY(0); }
+}
+.xm2-santa-arm {
+  transform-origin: 7px -3px;
+  animation: xm2-arm-wave 1.4s ease-in-out infinite;
+}
+@keyframes xm2-arm-wave {
+  0%, 100% { transform: rotate(-15deg); }
+  50%      { transform: rotate(25deg); }
+}
+
+/* Основной SVG-сцена — нижние 60% */
+.xm2-scene {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  height: 60%;
+  pointer-events: none;
+}
+
+/* Светящиеся окна — пульсируют */
+.xm2-window {
+  animation: xm2-window-flicker 4s ease-in-out infinite;
+}
+.xm2-win-v1 { animation-delay: 0s;    animation-duration: 4s; }
+.xm2-win-v2 { animation-delay: 1.5s;  animation-duration: 5s; }
+@keyframes xm2-window-flicker {
+  0%, 100% { opacity: 0.85; }
+  45%      { opacity: 1; }
+  55%      { opacity: 0.9; }
+}
+
+/* Дым из труб */
+.xm2-smoke {
+  animation: xm2-smoke-rise 4.5s ease-in-out infinite;
+  transform-origin: center bottom;
+  transform-box: fill-box;
+}
+@keyframes xm2-smoke-rise {
+  0%   { opacity: 0;   transform: translateY(0)   scale(0.7); }
+  25%  { opacity: 1; }
+  85%  { opacity: 0.4; }
+  100% { opacity: 0;   transform: translateY(-8px) scale(1.4); }
+}
+
+/* Снежный туман между планами */
+.xm2-snow-mist {
+  position: absolute;
+  top: 40%;
+  left: 0;
+  right: 0;
+  height: 30%;
+  background: linear-gradient(180deg, transparent 0%, rgba(180,200,230,0.10) 50%, transparent 100%);
+  filter: blur(8px);
+  pointer-events: none;
+  animation: xm2-mist-drift 18s ease-in-out infinite;
+}
+@keyframes xm2-mist-drift {
+  0%, 100% { transform: translateX(-3%); }
+  50%      { transform: translateX(3%); }
+}
+
+/* Снежинки далёкие — медленные, размытые, мелкие */
+.xm2-flake-far {
+  position: absolute;
+  top: -10px;
+  background: radial-gradient(circle, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0.25) 50%, transparent 100%);
+  border-radius: 50%;
+  filter: blur(1px);
+  animation: xm2-snow-fall-far linear infinite;
+  opacity: 0.6;
+  pointer-events: none;
+}
+@keyframes xm2-snow-fall-far {
+  0%   { top: -5%;  opacity: 0; }
+  10%  { opacity: 0.6; }
+  100% { top: 105%; opacity: 0; }
+}
+
+/* Снежинки близкие — чёткие, с дрейфом */
+.xm2-flake-close {
+  position: absolute;
+  top: -20px;
+  background: radial-gradient(circle, white 0%, rgba(255,255,255,0.6) 60%, transparent 100%);
+  border-radius: 50%;
+  box-shadow: 0 0 5px rgba(255,255,255,0.6);
+  animation: xm2-snow-fall-close linear infinite;
+  opacity: 0.95;
+  pointer-events: none;
+}
+@keyframes xm2-snow-fall-close {
+  0%   { top: -5%;  transform: translateX(0); opacity: 0; }
+  10%  { opacity: 0.95; }
+  100% { top: 105%; transform: translateX(var(--xm2-drift, 20px)); opacity: 0; }
+}
+
+
+  background:
+    radial-gradient(ellipse at 50% 50%, rgba(255, 200, 0, 0.18) 0%, transparent 60%),
+    linear-gradient(180deg, rgba(35, 25, 10, 0.5) 0%, rgba(20, 15, 5, 0.6) 100%);
+}
+.bee-warm-glow {
+  position: absolute;
+  inset: -20%;
+  background: radial-gradient(circle at 50% 50%, rgba(255, 200, 0, 0.20) 0%, transparent 60%);
+  animation: bee-glow-pulse 5s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes bee-glow-pulse {
+  0%, 100% { opacity: 0.7; }
+  50%      { opacity: 1; }
+}
+.bee-honeycomb-base {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.bee-honeycomb-filled {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  animation: hex-flicker 4s ease-in-out infinite;
+  filter: drop-shadow(0 0 8px rgba(255, 200, 0, 0.4));
+}
+@keyframes hex-flicker {
+  0%, 100% { opacity: 0.75; }
+  50%      { opacity: 1; }
+}
+.bee-fly {
+  position: absolute;
+  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.5));
+  animation: bee-flight ease-in-out infinite;
+}
+.bee-wing-group { animation: bee-wing-flap 0.15s ease-in-out infinite; transform-origin: 50% 18px; }
+@keyframes bee-wing-flap {
+  0%, 100% { transform: scaleY(1); }
+  50%      { transform: scaleY(0.5); }
+}
+@keyframes bee-flight {
+  0%   { transform: translate(0, 0) rotate(-3deg); }
+  20%  { transform: translate(25px, -15px) rotate(8deg); }
+  40%  { transform: translate(40px, 5px) rotate(-5deg); }
+  60%  { transform: translate(20px, 20px) rotate(6deg); }
+  80%  { transform: translate(-15px, 10px) rotate(-8deg); }
+  100% { transform: translate(0, 0) rotate(-3deg); }
+}
+
+/* ============================================================
+   BOMB PANEL — накопительная шкала + кнопка детонации
+   ============================================================
+   Расположена слева внизу canvas'а. Не мешает геймплею.
+   - Шкала накапливается с комбо
+   - При 100% кнопка загорается красным и пульсирует
+   - Игрок сам решает когда нажать
+   ============================================================ */
+.bomb-panel {
+  /* Старый класс — больше не используется, оставлен для совместимости */
+  display: none;
+}
+
+/* ============================================================
+   SHAKE DAMAGE — кнопка в HUD сверху
+   Круглая, с круговым прогрессом charge + 3 точки сверху
+   ============================================================ */
+.shake-damage-wrap {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+/* 3 точки-индикатора над кнопкой */
+.shake-damage-dots {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  justify-content: center;
+}
+.shake-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+}
+.shake-dot.idle {
+  background: rgba(255, 255, 255, 0.15);
+}
+.shake-dot.active {
+  background: radial-gradient(circle at 30% 30%, #ffe060 0%, #ff8830 60%, #ff4020 100%);
+  box-shadow: 0 0 6px rgba(255, 140, 60, 0.85);
+  animation: shake-dot-pulse 1.4s ease-in-out infinite;
+}
+.shake-dot.spent {
+  background: rgba(80, 50, 30, 0.7);
+  border: 1px solid rgba(255, 140, 60, 0.25);
+  box-sizing: border-box;
+}
+@keyframes shake-dot-pulse {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.25); }
+}
+
+/* Сама круглая кнопка */
+.shake-damage-btn {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: linear-gradient(180deg,
+    rgba(40, 30, 50, 0.85) 0%,
+    rgba(20, 15, 30, 0.85) 100%);
+  border: 1px solid var(--panel-border);
+  cursor: not-allowed;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  box-shadow:
+    inset 0 1px 2px rgba(255, 255, 255, 0.08),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.4),
+    0 4px 10px rgba(0, 0, 0, 0.35);
+  transition: all 0.2s ease;
+  isolation: isolate;
+}
+.shake-damage-btn.is-ready {
+  cursor: pointer;
+  background: radial-gradient(circle at 30% 30%,
+    #ff8050 0%,
+    #ff4030 50%,
+    #a01818 100%);
+  border-color: rgba(255, 220, 140, 0.85);
+  box-shadow:
+    inset 0 1px 2px rgba(255, 255, 255, 0.4),
+    inset 0 -3px 6px rgba(120, 20, 0, 0.6),
+    0 0 24px rgba(255, 100, 40, 0.7),
+    0 4px 12px rgba(0, 0, 0, 0.4);
+}
+.shake-damage-btn:active.is-ready {
+  transform: scale(0.92);
+}
+
+/* Круговой прогресс — SVG поверх кнопки */
+.shake-damage-progress {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* Иконка молнии в центре */
+.shake-damage-icon {
+  width: 24px;
+  height: 24px;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4));
+  /* Когда не ready — приглушённая */
+  opacity: 0.6;
+}
+.shake-damage-btn.is-ready .shake-damage-icon {
+  opacity: 1;
+  filter: drop-shadow(0 0 4px rgba(255, 220, 100, 0.8));
+  animation: shake-icon-pulse 1.2s ease-in-out infinite;
+}
+@keyframes shake-icon-pulse {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.12); }
+}
+
+/* Процент charge в углу когда копится */
+.shake-damage-percent {
+  position: absolute;
+  bottom: -2px;
+  right: -4px;
+  font-size: 8px;
+  font-weight: 800;
+  color: #ffd040;
+  background: rgba(0, 0, 0, 0.7);
+  border-radius: 6px;
+  padding: 1px 3px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  font-family: 'Inter', sans-serif;
+  pointer-events: none;
+}
+
+/* Пульсирующие кольца когда готов */
+.shake-damage-ring {
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 140, 60, 0.6);
+  pointer-events: none;
+  animation: shake-ring-pulse 1.6s ease-out infinite;
+}
+.shake-damage-ring-2 {
+  animation-delay: 0.5s;
+}
+@keyframes shake-ring-pulse {
+  0% {
+    opacity: 0.8;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.5);
+  }
+}
+
+/* На узких экранах ещё компактнее */
+@media (max-width: 380px) {
+  .shake-damage-btn {
+    width: 38px;
+    height: 38px;
+  }
+  .shake-damage-icon {
+    width: 20px;
+    height: 20px;
+  }
+  .shake-dot {
+    width: 5px;
+    height: 5px;
+  }
+}
+
+/* Контейнер: шкала вверху, 3 точки под ней */
+.bomb-bar-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 76px;
+}
+
+/* Шкала прогресса (charge 0..100) */
+.bomb-bar-bg {
+  height: 9px;
+  background: rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 100px;
+  overflow: hidden;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+.bomb-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg,
+    #ff8830 0%,
+    #ffb040 30%,
+    #ffe060 60%,
+    #ff4030 100%);
+  background-size: 200% 100%;
+  border-radius: 100px;
+  transition: width 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow:
+    0 0 10px rgba(255, 140, 60, 0.6),
+    inset 0 1px 0 rgba(255, 255, 255, 0.45);
+}
+
+/* 3 точки — состояние зарядов в партии */
+.bomb-charges-indicator {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  justify-content: center;
+}
+.bomb-charge-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+}
+/* idle — ещё не заработан (пустая клетка) */
+.bomb-charge-dot.idle {
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+/* active — готовый заряд (горит и пульсирует) */
+.bomb-charge-dot.active {
+  background: radial-gradient(circle at 30% 30%, #ffe060 0%, #ff8830 60%, #ff4020 100%);
+  box-shadow:
+    0 0 8px rgba(255, 140, 60, 0.85),
+    inset 0 1px 1px rgba(255, 255, 255, 0.5);
+  animation: bomb-dot-pulse 1.4s ease-in-out infinite;
+}
+/* spent — потраченный (тёмный, погасший) */
+.bomb-charge-dot.spent {
+  background: rgba(80, 50, 30, 0.6);
+  border: 1px solid rgba(255, 140, 60, 0.20);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+@keyframes bomb-dot-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50%      { transform: scale(1.18); opacity: 0.85; }
+}
+
+/* Кнопка детонации */
+.bomb-button {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.20);
+  background: linear-gradient(180deg,
+    rgba(60, 60, 70, 0.7) 0%,
+    rgba(20, 20, 30, 0.7) 100%);
+  cursor: not-allowed;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  box-shadow:
+    inset 0 2px 4px rgba(0, 0, 0, 0.4),
+    0 2px 6px rgba(0, 0, 0, 0.3);
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  filter: grayscale(0.8);
+  opacity: 0.55;
+  isolation: isolate;
+  overflow: hidden;
+}
+.bomb-button:not(:disabled) {
+  cursor: pointer;
+  filter: none;
+  opacity: 1;
+  background: radial-gradient(circle at 30% 30%,
+    #ff8050 0%,
+    #ff4030 50%,
+    #a01818 100%);
+  border-color: rgba(255, 220, 140, 0.85);
+  box-shadow:
+    0 0 22px rgba(255, 80, 40, 0.8),
+    0 0 10px rgba(255, 140, 60, 0.6),
+    0 4px 8px rgba(0, 0, 0, 0.4),
+    inset 0 2px 0 rgba(255, 220, 180, 0.45),
+    inset 0 -3px 6px rgba(0, 0, 0, 0.3);
+  animation: bomb-button-pulse 1.2s ease-in-out infinite;
+}
+.bomb-button:not(:disabled)::before {
+  content: '';
+  position: absolute;
+  top: 1px; left: 1px; right: 1px;
+  height: 50%;
+  background: linear-gradient(180deg, rgba(255,255,255,0.35), transparent);
+  border-radius: 50% 50% 80% 80% / 50% 50% 100% 100%;
+  pointer-events: none;
+}
+@keyframes bomb-button-pulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow:
+      0 0 22px rgba(255, 80, 40, 0.8),
+      0 0 10px rgba(255, 140, 60, 0.6),
+      0 4px 8px rgba(0, 0, 0, 0.4),
+      inset 0 2px 0 rgba(255, 220, 180, 0.45),
+      inset 0 -3px 6px rgba(0, 0, 0, 0.3);
+  }
+  50% {
+    transform: scale(1.06);
+    box-shadow:
+      0 0 36px rgba(255, 100, 50, 1),
+      0 0 18px rgba(255, 160, 80, 0.8),
+      0 4px 8px rgba(0, 0, 0, 0.4),
+      inset 0 2px 0 rgba(255, 220, 180, 0.6),
+      inset 0 -3px 6px rgba(0, 0, 0, 0.3);
+  }
+}
+.bomb-button:not(:disabled):active {
+  transform: scale(0.92);
+  animation: none;
+  box-shadow:
+    0 0 12px rgba(255, 80, 40, 0.6),
+    inset 0 3px 8px rgba(0, 0, 0, 0.4);
+}
+.bomb-button-icon {
+  position: relative;
+  z-index: 2;
+  width: 26px;
+  height: 26px;
+  display: block;
+  filter: drop-shadow(0 1px 3px rgba(255, 200, 60, 0.7))
+          drop-shadow(0 0 6px rgba(255, 100, 40, 0.5));
+}
+.bomb-button:not(:disabled) .bomb-button-icon {
+  animation: bomb-icon-shake 0.35s ease-in-out infinite;
+}
+@keyframes bomb-icon-shake {
+  0%, 100% { transform: rotate(-8deg) scale(1); }
+  50%      { transform: rotate(8deg) scale(1.08); }
+}
+
+/* Расходящиеся кольца вокруг готовой кнопки */
+.bomb-button-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 180, 80, 0.8);
+  pointer-events: none;
+  animation: bomb-ring-expand 1.4s ease-out infinite;
+}
+.bomb-button-ring-2 {
+  animation-delay: 0.7s;
+}
+@keyframes bomb-ring-expand {
+  0% {
+    transform: scale(1);
+    opacity: 0.9;
+    border-color: rgba(255, 180, 80, 0.9);
+  }
+  100% {
+    transform: scale(2.2);
+    opacity: 0;
+    border-color: rgba(255, 80, 40, 0);
+  }
+}
+
+/* Полноэкранная вспышка в момент детонации */
+.shake-damage-flash {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 200;
+  background: radial-gradient(circle at center,
+    rgba(255, 220, 100, 0.85) 0%,
+    rgba(255, 120, 40, 0.6) 30%,
+    rgba(255, 60, 20, 0.3) 60%,
+    transparent 100%);
+  animation: shake-flash 0.7s ease-out forwards;
+  mix-blend-mode: screen;
+}
+@keyframes shake-flash {
+  0%   { opacity: 0; transform: scale(0.5); }
+  20%  { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(2); }
+}
+
+/* ============================================================
+   ТЕМАТИЧЕСКИЕ ПРЕВЬЮ ТЕМ В МАГАЗИНЕ
+   ============================================================ */
+.theme-card-preview {
+  width: 100%;
+  height: 80px;
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 8px;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08),
+    inset 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+.theme-card-preview svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* ============================================================
+   COIN SLOT MYSTERY — скрытые монеты в магазине
+   ============================================================ */
+.coin-slot-mystery {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.coin-slot-mystery-svg {
+  width: 56px;
+  height: 56px;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4));
+}
+.coin-slot-ticker.mystery {
+  color: #6a6878;
+  letter-spacing: 0.15em;
+}
+
+/* ============================================================
+   Tutorial Step 4 — Shake Damage анимация
+   ============================================================ */
+.tut-shake-coins {
+  animation: tut-shake-jitter 0.2s ease-in-out infinite;
+  transform-origin: center;
+  transform-box: fill-box;
+}
+@keyframes tut-shake-jitter {
+  0%, 100% { transform: translate(-1px, -1px); }
+  25%      { transform: translate(1px, -1px); }
+  50%      { transform: translate(1px, 1px); }
+  75%      { transform: translate(-1px, 1px); }
+}
+.tut-shake-bolt {
+  animation: tut-bolt-pulse 1s ease-in-out infinite;
+  transform-origin: 100px 120px;
+  transform-box: fill-box;
+  filter: drop-shadow(0 0 8px rgba(255, 180, 60, 0.7));
+}
+@keyframes tut-bolt-pulse {
+  0%, 100% { transform: scale(1) rotate(-3deg); opacity: 0.9; }
+  50%      { transform: scale(1.15) rotate(3deg); opacity: 1; }
+}
+.tut-shake-shock circle {
+  animation: tut-shock-ring 2s ease-out infinite;
+  transform-origin: 100px 120px;
+  transform-box: fill-box;
+}
+.tut-shake-shock circle:nth-child(2) { animation-delay: 0.3s; }
+.tut-shake-shock circle:nth-child(3) { animation-delay: 0.6s; }
+@keyframes tut-shock-ring {
+  0%   { opacity: 0;   transform: scale(0.3); }
+  50%  { opacity: 0.7; }
+  100% { opacity: 0;   transform: scale(1.4); }
+}
+.tut-shake-label {
+  animation: tut-label-glow 1.5s ease-in-out infinite;
+}
+@keyframes tut-label-glow {
+  0%, 100% { opacity: 0.7; }
+  50%      { opacity: 1; }
+}
+
+/* ============================================================
+   DONATE MODAL — окно с тремя кошельками и QR
+   ============================================================ */
+.donate-overlay {
+  align-items: center;
+  justify-content: center;
+}
+.donate-card {
+  max-width: 360px;
+  width: calc(100% - 32px);
+  padding: 20px 18px 22px;
+  position: relative;
+}
+.donate-subtitle {
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text-secondary);
+  text-align: center;
+  margin: 6px 0 14px;
+}
+
+/* Табы кошельков */
+.donate-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.donate-tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 6px;
+  border-radius: 10px;
+  border: 1.5px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.3);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.donate-tab:hover {
+  border-color: var(--donate-tab-color, var(--accent));
+  color: var(--text-primary);
+}
+.donate-tab.active {
+  border-color: var(--donate-tab-color, var(--accent));
+  background: color-mix(in srgb, var(--donate-tab-color, var(--accent)) 12%, transparent);
+  color: var(--text-primary);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--donate-tab-color, var(--accent)) 25%, transparent);
+}
+.donate-tab-icon {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+}
+
+/* Сеть */
+.donate-network {
+  text-align: center;
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  color: var(--text-hint);
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
+/* QR */
+.donate-qr-wrap {
+  background: #fff;
+  padding: 8px;
+  border-radius: 12px;
+  margin: 0 auto 14px;
+  width: 200px;
+  height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+}
+.donate-qr {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Адрес */
+.donate-address-wrap {
+  margin-bottom: 12px;
+}
+.donate-address-label {
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  color: var(--text-hint);
+  text-transform: uppercase;
+  margin-bottom: 4px;
+  text-align: center;
+}
+.donate-address {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 14px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1.5px solid rgba(255, 255, 255, 0.10);
+  border-radius: 10px;
+  color: var(--text-primary);
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.donate-address:hover {
+  border-color: var(--accent);
+  background: rgba(0, 0, 0, 0.5);
+}
+.donate-address-text {
+  font-family: monospace;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.donate-address-copy {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+/* Подсказка */
+.donate-note {
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--text-hint);
+  text-align: center;
+}
+
+/* ============================================================
+   DONATE — особый вид для Acki Nacki wallet name
+   ============================================================ */
+.donate-wallet-name-display {
+  background: linear-gradient(180deg,
+    rgba(255, 170, 64, 0.12) 0%,
+    rgba(255, 110, 32, 0.08) 100%);
+  border: 1.5px solid rgba(255, 170, 64, 0.30);
+  border-radius: 14px;
+  padding: 18px 16px;
+  margin-bottom: 14px;
+  text-align: center;
+}
+.donate-wallet-name-label {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: #ffaa40;
+  text-transform: uppercase;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+.donate-wallet-name-value {
+  font-family: 'Fredoka', 'Inter', system-ui, sans-serif;
+  font-size: 26px;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: 0.02em;
+  margin-bottom: 8px;
+  text-shadow: 0 0 12px rgba(255, 170, 64, 0.5);
+}
+.donate-wallet-name-hint {
+  font-size: 11px;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+/* Иконка-картинка для support-кнопок (вместо SVG) */
+.support-btn-icon-img {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  object-fit: contain;
+  display: block;
+}
+
+/* ============================================================
+   ЛОГОТИП NACKL MERGE — цветовая адаптация под тему
+   ============================================================
+   Базовый лого жёлто-оранжевый. Через hue-rotate + saturate
+   перекрашиваем его под акцент каждой темы, сохраняя контраст.
+   ------------------------------------------------------------ */
+
+/* PASTEL — оставляем естественный жёлто-оранжевый (по умолчанию) */
+/* EXCHANGE — биржевой зелёный */
+[data-theme="exchange"] .brand-nackl-full {
+  filter:
+    hue-rotate(75deg) saturate(0.85)
+    drop-shadow(0 8px 24px rgba(80, 220, 120, 0.45))
+    drop-shadow(0 0 40px rgba(60, 200, 100, 0.25));
+}
+
+/* OCEAN — голубой */
+[data-theme="ocean"] .brand-nackl-full {
+  filter:
+    hue-rotate(160deg) saturate(0.9)
+    drop-shadow(0 8px 24px rgba(80, 180, 255, 0.45))
+    drop-shadow(0 0 40px rgba(60, 140, 255, 0.25));
+}
+
+/* PIZZA — оставляем натуральный (он и так в тёплых тонах) */
+
+/* CHINA — красно-золотой (усиливаем красный) */
+[data-theme="china"] .brand-nackl-full {
+  filter:
+    hue-rotate(-15deg) saturate(1.2)
+    drop-shadow(0 8px 24px rgba(255, 80, 40, 0.5))
+    drop-shadow(0 0 40px rgba(255, 60, 20, 0.3));
+}
+
+/* HALLOWEEN — оранжево-фиолетовый, оставляем тёплым */
+
+/* CHRISTMAS — красно-белый, чуть подкручиваем красный */
+[data-theme="christmas"] .brand-nackl-full {
+  filter:
+    hue-rotate(-10deg) saturate(1.1)
+    drop-shadow(0 8px 24px rgba(255, 80, 80, 0.45))
+    drop-shadow(0 0 40px rgba(255, 60, 60, 0.25));
+}
+
+/* TERMINAL — Matrix-зелёный */
+[data-theme="terminal"] .brand-nackl-full {
+  filter:
+    hue-rotate(85deg) saturate(1.4) brightness(0.95)
+    drop-shadow(0 8px 24px rgba(0, 255, 120, 0.5))
+    drop-shadow(0 0 40px rgba(0, 220, 80, 0.3));
+}
+
+/* CYBERPUNK — yellow-green + фиолетовый */
+[data-theme="cyberpunk"] .brand-nackl-full {
+  filter:
+    hue-rotate(40deg) saturate(1.3) brightness(1.05)
+    drop-shadow(0 8px 24px rgba(190, 255, 50, 0.5))
+    drop-shadow(0 0 40px rgba(180, 50, 255, 0.3));
+}
+
+/* BEE_ENGINE — натуральный жёлто-золотой (оставляем как есть) */
+
+/* BITCOIN — золотисто-оранжевый (естественно подходит) */
+
+/* ACKI_NACKI — золотисто-жёлтый (нативный) */
+
+/* ============================================================
+   ONBOARDING SCREEN — приветствие нового пользователя
+   ============================================================ */
+.onboarding-screen {
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 20px;
+  overflow-y: auto;
+  z-index: 100;
+}
+.onboarding-content {
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  position: relative;
+  z-index: 2;
+}
+
+/* Hero — логотип сверху */
+.onboarding-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding-top: 8px;
+}
+.onboarding-logo {
+  width: 220px;
+  height: 220px;
+  object-fit: contain;
+  filter:
+    drop-shadow(0 8px 24px rgba(255, 180, 40, 0.4))
+    drop-shadow(0 0 40px rgba(255, 100, 40, 0.25));
+  animation: nackl-bob 5s ease-in-out infinite;
+}
+.onboarding-tagline {
+  font-size: 14px;
+  color: var(--text-secondary);
+  text-align: center;
+  letter-spacing: 0.02em;
+  max-width: 320px;
+}
+
+/* Карточка с вопросом и кнопками */
+.onboarding-card {
+  width: 100%;
+  background: var(--panel-bg);
+  border: 1.5px solid var(--panel-border);
+  border-radius: 20px;
+  padding: 24px 20px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.5);
+}
+.onboarding-q-title {
+  font-family: 'Fredoka', system-ui, sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+  text-align: center;
+  line-height: 1.25;
+}
+.onboarding-q-sub {
+  font-size: 13px;
+  color: var(--text-secondary);
+  text-align: center;
+  line-height: 1.45;
+  margin-top: -8px;
+}
+
+/* Краткие правила игры — две строки с иконками */
+.onboarding-rules {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  margin-bottom: 4px;
+}
+.onboarding-rule {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--text-secondary);
+}
+.onboarding-rule-icon {
+  font-size: 16px;
+  line-height: 1;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+/* Кнопки выбора */
+.onboarding-actions {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.onboarding-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  text-align: left;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.onboarding-btn:active { transform: scale(0.97); }
+.onboarding-btn-icon {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  font-weight: 800;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.18);
+}
+.onboarding-btn-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.onboarding-btn-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #fff;
+}
+.onboarding-btn-sub {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.78);
+}
+
+/* Сценарий "есть кошелёк" — основной CTA */
+.onboarding-btn-yes {
+  background: var(--cta-gradient);
+  color: #fff;
+  box-shadow: 0 8px 22px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+/* Сценарий "новичок" — отдельный синий стиль */
+.onboarding-btn-no {
+  background: linear-gradient(135deg, #4080ff 0%, #2050c0 100%);
+  color: #fff;
+  box-shadow: 0 8px 22px rgba(64, 128, 255, 0.35);
+}
+
+/* Дисклеймер — что без кошелька играть нельзя */
+.onboarding-disclaimer {
+  font-size: 12px;
+  color: var(--text-hint);
+  text-align: center;
+  line-height: 1.4;
+  margin-top: 4px;
+  padding: 0 8px;
+}
