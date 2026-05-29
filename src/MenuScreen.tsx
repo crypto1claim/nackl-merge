@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { connectWallet, type WalletState } from './wallet';
+import { connectWallet, confirmAuthorization, type WalletState } from './wallet';
 import { hapticSelection, hapticImpact, hapticNotification } from './telegram';
 import { t } from './i18n';
 import { COIN_SET_DEFAULT, COIN_SET_ALT } from './coin_sets';
@@ -20,21 +20,47 @@ interface Props {
 export default function MenuScreen({ onConnected, onSettings, onShop, onAbout, onPlay, walletConnected, balance }: Props) {
   const [connecting, setConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [walletName, setWalletName] = useState('');
+  const [pendingState, setPendingState] = useState<WalletState | null>(null);
+  const [waitingConfirm, setWaitingConfirm] = useState(false);
 
   const handleConnect = async () => {
+    if (!walletName.trim()) { setError('Введи имя AN Wallet'); return; }
     setConnecting(true);
     setError(null);
     Sound.click();
     hapticImpact('medium');
     try {
-      const state = await connectWallet();
+      const state = await connectWallet(walletName.trim());
+      if (state.minerReady) {
+        Sound.fanfare();
+        hapticNotification('success');
+        onConnected(state);
+      } else {
+        setPendingState(state);
+        setConnecting(false);
+      }
+    } catch (e) {
+      setError(t('menu.error'));
+      hapticNotification('error');
+      setConnecting(false);
+    }
+  };
+
+  const handleConfirmAuth = async () => {
+    if (!pendingState?.address) return;
+    setWaitingConfirm(true);
+    setError(null);
+    try {
+      const state = await confirmAuthorization(pendingState.address);
       Sound.fanfare();
       hapticNotification('success');
       onConnected(state);
     } catch {
-      setError(t('menu.error'));
+      setError('Подтверждение не получено. Убедись что открыл AN Wallet и подтвердил.');
       hapticNotification('error');
-      setConnecting(false);
+    } finally {
+      setWaitingConfirm(false);
     }
   };
 
@@ -128,18 +154,43 @@ export default function MenuScreen({ onConnected, onSettings, onShop, onAbout, o
           <button className="menu-cta" onClick={handlePlay}>
             <PlayIcon /> {t('menu.play')}
           </button>
+        ) : pendingState?.pendingDeepLink ? (
+          <div className="menu-wallet-connect">
+            <p className="menu-auth-hint">Открой AN Wallet и подтверди подключение:</p>
+            <a href={pendingState.pendingDeepLink} className="menu-cta menu-cta-deeplink" target="_blank" rel="noreferrer">
+              <WalletIcon /> Открыть AN Wallet
+            </a>
+            <button
+              className={`menu-cta menu-cta-secondary ${waitingConfirm ? 'connecting' : ''}`}
+              onClick={handleConfirmAuth}
+              disabled={waitingConfirm}
+            >
+              {waitingConfirm ? <><span className="spinner" />Проверяем...</> : <>✓ Я подтвердил в кошельке</>}
+            </button>
+            {error && <p className="menu-error">{error}</p>}
+          </div>
         ) : (
-          <button
-            className={`menu-cta ${connecting ? 'connecting' : ''}`}
-            onClick={handleConnect}
-            disabled={connecting}
-          >
-            {connecting ? (
-              <><span className="spinner" />{t('menu.connecting')}</>
-            ) : (
-              <><WalletIcon />{t('menu.cta')}</>
-            )}
-          </button>
+          <div className="menu-wallet-connect">
+            <input
+              className="menu-wallet-input"
+              type="text"
+              placeholder="Имя AN Wallet (например: alice)"
+              value={walletName}
+              onChange={e => setWalletName(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleConnect()}
+              disabled={connecting}
+              autoComplete="off"
+              spellCheck={false}
+            />
+            <button
+              className={`menu-cta ${connecting ? 'connecting' : ''}`}
+              onClick={handleConnect}
+              disabled={connecting || !walletName.trim()}
+            >
+              {connecting ? <><span className="spinner" />{t('menu.connecting')}</> : <><WalletIcon />{t('menu.cta')}</>}
+            </button>
+            {error && <p className="menu-error">{error}</p>}
+          </div>
         )}
 
         <p className="menu-footer">{t('menu.footer')}</p>

@@ -4,6 +4,7 @@
 // ============================================================
 
 import Matter from 'matter-js';
+import { addTap } from './beeEngine';
 import { FRUITS, randomSpawnLevel, type FruitDef } from './fruits';
 import { tg } from './telegram';
 import { getSprite, preloadSprites } from './sprites';
@@ -392,6 +393,7 @@ export class GameEngine {
           const merged = this.createFruitBody(mx, my, nextLevel, 1);
           Matter.Body.setVelocity(merged, { x: 0, y: -2 });
           Matter.Composite.add(this.world, merged);
+          addTap(Math.round(mx), Math.round(my));
 
           // === Комбо-логика ===
           const now = performance.now();
