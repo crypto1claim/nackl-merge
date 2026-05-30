@@ -315,37 +315,18 @@ export default function App() {
           </div>
         </div>
         <div className="hud-right">
-          {/* Заработано за партию */}
+          {/* Заработано за партию. БАЛАНС убран — он не нужен в игре,
+              виден в меню и на game-over экране. Это освобождает место под
+              бустеры в HUD-right, чтобы Settings не уходил за край экрана. */}
           <div className="hud-stat hud-stat-earned">
             <span className="hud-stat-label">{t('hud.earned')}</span>
             <span className="hud-stat-value">+{formatMRG(sessionEarned)}</span>
           </div>
-          {/* Общий баланс */}
-          <div className="hud-stat hud-stat-balance">
-            <span className="hud-stat-label">{t('hud.balance')}</span>
-            <span className="hud-stat-value">{formatMRG(balance)}</span>
-          </div>
-          {/* Shake Damage — круглая кнопка с круговым прогрессом и 3 точками */}
-          <ShakeDamageButton
-            state={bombState}
-            onClick={() => engineRef.current?.detonateBomb()}
-          />
-          <button className="settings-fab hud-pause" onClick={handlePauseClick} aria-label={t('pause.title')}>
-            <PauseIcon />
-          </button>
-          <button className="settings-fab hud-settings" onClick={() => { Sound.click(); setShowSettings(true); }} aria-label={t('settings.title')}>
-            <SettingsIcon />
-          </button>
-        </div>
-      </div>
-
-      {/* Бустеры — горизонтальная полоса ВНИЗУ экрана. Только если что-то куплено. */}
-      {(Object.values(powerupInv).some((n) => n > 0)) && (
-        <div className="powerup-tray">
+          {/* Бустеры — встроены в HUD-right ПЕРЕД Shake Damage, маленькие */}
           {POWERUPS.filter((pu) => powerupInv[pu.id] > 0).map((pu) => (
             <button
               key={pu.id}
-              className={`powerup-pill powerup-pill-${pu.id}`}
+              className={`powerup-mini powerup-mini-${pu.id}`}
               onClick={() => {
                 Sound.click();
                 const e = engineRef.current;
@@ -359,11 +340,22 @@ export default function App() {
               title={pu.title}
             >
               <PowerUpIcon id={pu.id} />
-              <span className="powerup-pill-count">{powerupInv[pu.id as PowerUpId]}</span>
+              <span className="powerup-mini-count">{powerupInv[pu.id as PowerUpId]}</span>
             </button>
           ))}
+          {/* Shake Damage — круглая кнопка с круговым прогрессом и 3 точками */}
+          <ShakeDamageButton
+            state={bombState}
+            onClick={() => engineRef.current?.detonateBomb()}
+          />
+          <button className="settings-fab hud-pause" onClick={handlePauseClick} aria-label={t('pause.title')}>
+            <PauseIcon />
+          </button>
+          <button className="settings-fab hud-settings" onClick={() => { Sound.click(); setShowSettings(true); }} aria-label={t('settings.title')}>
+            <SettingsIcon />
+          </button>
         </div>
-      )}
+      </div>
 
       <div className="canvas-wrap">
         <canvas ref={canvasRef} />
