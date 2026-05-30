@@ -10,7 +10,7 @@
 // в localStorage. Чтобы повторить — поменять номер версии (v3, v4...).
 // ============================================================
 
-const RESET_FLAG = 'acki_merge_full_reset_v5';
+const RESET_FLAG = 'acki_merge_full_reset_v6';
 
 if (typeof localStorage !== 'undefined' && !localStorage.getItem(RESET_FLAG)) {
   const keysToWipe = [
@@ -21,17 +21,26 @@ if (typeof localStorage !== 'undefined' && !localStorage.getItem(RESET_FLAG)) {
     'acki_merge_best_session',
     'acki_merge_tutorial_seen',
     'nackl_merge_onboarding_seen',
-    // Устаревшие
+    // Новые ключи (бустеры/достижения/daily/wallet)
+    'acki_merge_wallet_v2',
+    'nackl_powerups_inventory',
+    'nackl_achievements_unlocked',
+    'nackl_daily_last_date',
+    'nackl_daily_streak',
+    'nackl_shake_hint_seen',
+    // Устаревшие флаги ресетов
     'acki_merge_dev_boost_reset_v1',
     'acki_merge_100k_bonus_v1',
     'acki_merge_full_reset_v2',
     'acki_merge_full_reset_v3',
     'acki_merge_full_reset_v4',
+    'acki_merge_full_reset_v5',
   ];
   for (const k of keysToWipe) {
     try { localStorage.removeItem(k); } catch { /* */ }
   }
-  // БАЛАНС 0 — как настоящий новый пользователь
+  // Стартовый баланс 0 MRG — все начнут как новые пользователи.
+  // Тестовая кнопка «+1 000 000» в Settings даёт MRG для теста покупок.
   try {
     localStorage.setItem('acki_merge_mrg', '0');
     localStorage.setItem('acki_merge_best_session', '0');

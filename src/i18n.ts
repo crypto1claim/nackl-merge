@@ -132,7 +132,9 @@ const TRANSLATIONS = {
     'tutorial.step3_title': 'Сливай одинаковые',
     'tutorial.step3_text': 'Две одинаковые монеты сливаются в следующую по уровню. Дойди до NACKL!',
     'tutorial.step4_title': '⚡ Shake Damage',
-    'tutorial.step4_text': 'Шкала растёт от каскадов слияний ×3 и выше. Когда заполнится — точка слева внизу загорится. Нажми молнию ИЛИ потряси телефон. Максимум 3 раза за партию.',
+    'tutorial.step4_text': 'Шкала Shake Damage растёт только от КРУПНЫХ комбо — ×10 и выше. Когда заполнится — точка над молнией загорится. Нажми молнию в HUD ИЛИ потряси телефон: все монеты в банке взорвутся волной. Лимит — 3 заряда за партию.',
+    'tutorial.step5_title': '🛒 Бустеры',
+    'tutorial.step5_text': 'Покупай в магазине за MRG: 🗑 убрать монету, ⬆️ следующая монета выше на 1 уровень, ⚡ +1 заряд Shake Damage. Кнопки появятся в HUD. Каждого бустера — максимум 3 раза за партию.',
 
     // Donate
     'donate.title': 'Поддержать автора',
@@ -272,7 +274,9 @@ const TRANSLATIONS = {
     'tutorial.step3_title': 'Merge same coins',
     'tutorial.step3_text': 'Two identical coins merge into the next level up. Reach NACKL!',
     'tutorial.step4_title': '⚡ Shake Damage',
-    'tutorial.step4_text': 'The gauge fills from cascades ×3 and higher. When full, a dot lights up at the bottom-left. Tap the lightning OR shake your phone. Max 3 uses per game.',
+    'tutorial.step4_text': 'The Shake Damage bar fills ONLY from BIG combos — ×10 and higher. When full, the dot above the lightning lights up. Tap the lightning in HUD OR shake your phone: all coins in the jar explode in a wave. Limit — 3 charges per game.',
+    'tutorial.step5_title': '🛒 Boosters',
+    'tutorial.step5_text': 'Buy in shop for MRG: 🗑 remove a coin, ⬆️ next coin one level higher, ⚡ +1 Shake Damage charge. Buttons appear in HUD. Each booster — max 3 uses per game.',
 
     'donate.title': 'Support the author',
     'donate.subtitle': 'Choose a wallet and send any amount. Thanks for your support!',

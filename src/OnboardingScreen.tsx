@@ -82,7 +82,7 @@ export default function OnboardingScreen({ onProceed }: Props) {
             </div>
             <div className="onboarding-rule">
               <span className="onboarding-rule-icon">⚡</span>
-              <span>Делай комбо ×3+ → заряжай Shake Damage. Максимум 3 использования за партию</span>
+              <span>Делай комбо ×10+ → заряжай Shake Damage. Максимум 3 использования за партию</span>
             </div>
           </div>
 

@@ -29,6 +29,7 @@ const STEPS = [
   { titleKey: 'tutorial.step2_title', textKey: 'tutorial.step2_text' },
   { titleKey: 'tutorial.step3_title', textKey: 'tutorial.step3_text' },
   { titleKey: 'tutorial.step4_title', textKey: 'tutorial.step4_text' },
+  { titleKey: 'tutorial.step5_title', textKey: 'tutorial.step5_text' },
 ] as const;
 
 export default function Tutorial({ onDone }: Props) {
@@ -56,6 +57,7 @@ export default function Tutorial({ onDone }: Props) {
         {step === 1 && <Step2Scene />}
         {step === 2 && <Step3Scene />}
         {step === 3 && <Step4Scene />}
+        {step === 4 && <Step5Scene />}
       </div>
 
       <div className="tutorial-card">
@@ -541,6 +543,105 @@ function Step4Scene() {
           />
         </g>
       </g>
+    </svg>
+  );
+}
+
+// ============================================================
+// ШАГ 5: БУСТЕРЫ — 3 круглые кнопки с иконками + бейджи количества
+// ============================================================
+function Step5Scene() {
+  return (
+    <svg viewBox="0 0 320 360" className="tutorial-jar-svg">
+      <defs>
+        <linearGradient id="s5-bolt" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#fff8d0"/>
+          <stop offset="50%" stopColor="#ffd040"/>
+          <stop offset="100%" stopColor="#ff7020"/>
+        </linearGradient>
+      </defs>
+
+      {/* Фоновое свечение */}
+      <ellipse cx="160" cy="180" rx="140" ry="110" fill="rgba(255, 180, 80, 0.10)"/>
+
+      {/* Заголовок */}
+      <text x="160" y="50" textAnchor="middle"
+            fontSize="10" fontWeight="700"
+            fill="#ffaa40"
+            letterSpacing="0.2em"
+            fontFamily="Fredoka, sans-serif">
+        БУСТЕРЫ В HUD
+      </text>
+
+      {/* 3 бустерные кнопки. Каждая: круг + иконка + бейдж количества. */}
+      {/* === 1) Убрать монету (красный) === */}
+      <g transform="translate(80 130)">
+        <g>
+          <animateTransform attributeName="transform" type="scale" values="1;1.08;1" dur="1.6s" repeatCount="indefinite" additive="sum"/>
+          <circle r="34" fill="rgba(15, 12, 30, 0.85)" stroke="#ff8080" strokeWidth="2.5"/>
+          {/* Корзина SVG */}
+          <g transform="translate(-12 -12)">
+            <path
+              d="M 2 4 h20 M 7 4 V 2 a 2 2 0 0 1 2 -2 h6 a 2 2 0 0 1 2 2 v2 M 4 4 l 1 16 a 2 2 0 0 0 2 2 h10 a 2 2 0 0 0 2 -2 l 1 -16"
+              stroke="#ff8080" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"
+            />
+          </g>
+        </g>
+        {/* Бейдж с цифрой 3 */}
+        <circle cx="22" cy="-22" r="11" fill="#ffd84d" stroke="#0a0814" strokeWidth="2.5"/>
+        <text x="22" y="-18" textAnchor="middle" fontSize="13" fontWeight="900" fill="#000" fontFamily="Fredoka, sans-serif">3</text>
+      </g>
+
+      {/* === 2) Буст +1 уровень (бирюзовый) === */}
+      <g transform="translate(160 130)">
+        <g>
+          <animateTransform attributeName="transform" type="scale" values="1;1.08;1" dur="1.6s" begin="0.5s" repeatCount="indefinite" additive="sum"/>
+          <circle r="34" fill="rgba(15, 12, 30, 0.85)" stroke="#6affe0" strokeWidth="2.5"/>
+          {/* Стрелка вверх */}
+          <path d="M 0 -14 L 0 14 M -10 -4 L 0 -14 L 10 -4"
+                stroke="#6affe0" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+        </g>
+        <circle cx="22" cy="-22" r="11" fill="#ffd84d" stroke="#0a0814" strokeWidth="2.5"/>
+        <text x="22" y="-18" textAnchor="middle" fontSize="13" fontWeight="900" fill="#000" fontFamily="Fredoka, sans-serif">3</text>
+      </g>
+
+      {/* === 3) +1 заряд Shake (жёлтый) === */}
+      <g transform="translate(240 130)">
+        <g>
+          <animateTransform attributeName="transform" type="scale" values="1;1.08;1" dur="1.6s" begin="1s" repeatCount="indefinite" additive="sum"/>
+          <circle r="34" fill="rgba(15, 12, 30, 0.85)" stroke="#ffd84d" strokeWidth="2.5"/>
+          {/* Молния */}
+          <path d="M 4 -14 L -8 4 L -1 4 L -5 14 L 8 -2 L 2 -2 L 4 -14 Z"
+                fill="url(#s5-bolt)" stroke="#a04010" strokeWidth="1"/>
+        </g>
+        <circle cx="22" cy="-22" r="11" fill="#ffd84d" stroke="#0a0814" strokeWidth="2.5"/>
+        <text x="22" y="-18" textAnchor="middle" fontSize="13" fontWeight="900" fill="#000" fontFamily="Fredoka, sans-serif">3</text>
+      </g>
+
+      {/* Подписи под каждой */}
+      <text x="80" y="200" textAnchor="middle" fontSize="11" fontWeight="700" fill="#ddd" fontFamily="Fredoka, sans-serif">Убрать</text>
+      <text x="80" y="214" textAnchor="middle" fontSize="11" fontWeight="700" fill="#ddd" fontFamily="Fredoka, sans-serif">монету</text>
+
+      <text x="160" y="200" textAnchor="middle" fontSize="11" fontWeight="700" fill="#ddd" fontFamily="Fredoka, sans-serif">Буст</text>
+      <text x="160" y="214" textAnchor="middle" fontSize="11" fontWeight="700" fill="#ddd" fontFamily="Fredoka, sans-serif">+1 уровень</text>
+
+      <text x="240" y="200" textAnchor="middle" fontSize="11" fontWeight="700" fill="#ddd" fontFamily="Fredoka, sans-serif">+1 заряд</text>
+      <text x="240" y="214" textAnchor="middle" fontSize="11" fontWeight="700" fill="#ddd" fontFamily="Fredoka, sans-serif">Shake</text>
+
+      {/* Цены */}
+      <text x="80" y="240" textAnchor="middle" fontSize="13" fontWeight="800" fill="#6affe0" fontFamily="Fredoka, sans-serif">200 MRG</text>
+      <text x="160" y="240" textAnchor="middle" fontSize="13" fontWeight="800" fill="#6affe0" fontFamily="Fredoka, sans-serif">500 MRG</text>
+      <text x="240" y="240" textAnchor="middle" fontSize="13" fontWeight="800" fill="#6affe0" fontFamily="Fredoka, sans-serif">1000 MRG</text>
+
+      {/* Подсказка внизу */}
+      <rect x="40" y="280" width="240" height="48" rx="12"
+            fill="rgba(255, 170, 64, 0.10)" stroke="rgba(255, 170, 64, 0.3)" strokeWidth="1.5"/>
+      <text x="160" y="303" textAnchor="middle" fontSize="12" fontWeight="700" fill="#ffaa40" fontFamily="Fredoka, sans-serif">
+        Лимит — 3 применения
+      </text>
+      <text x="160" y="318" textAnchor="middle" fontSize="12" fontWeight="700" fill="#ffaa40" fontFamily="Fredoka, sans-serif">
+        каждого бустера за партию
+      </text>
     </svg>
   );
 }
