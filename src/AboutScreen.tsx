@@ -98,6 +98,23 @@ export default function AboutScreen({ onBack }: Props) {
           <div className="about-card-text">{t('about.bomb_text')}</div>
         </div>
 
+        {/* Карточка про бустеры */}
+        <div className="about-card">
+          <div className="about-card-icon" style={{ background: 'linear-gradient(135deg, #6affe0, #2a8870)' }}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M6 2 L18 2 L20 6 L12 22 L4 6 Z"/>
+              <path d="M12 6 L12 12"/>
+            </svg>
+          </div>
+          <div className="about-card-title">{t('about.boosters_title')}</div>
+          <div className="about-card-text">{t('about.boosters_text')}</div>
+          <ul className="about-steps">
+            <li>{t('about.boosters_list1')}</li>
+            <li>{t('about.boosters_list2')}</li>
+            <li>{t('about.boosters_list3')}</li>
+          </ul>
+        </div>
+
         {/* Карточка "Поддержать автора" — кнопки канала и доната */}
         <div className="about-card about-card-support">
           <div className="about-card-icon">

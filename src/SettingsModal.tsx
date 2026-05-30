@@ -12,6 +12,7 @@ import { useState } from 'react';
 import { t, getLang, setLang, type Lang } from './i18n';
 import { Settings } from './settings';
 import { disconnectWallet, type WalletState } from './wallet';
+import { earnMRG, getBalance, formatMRG } from './currency';
 import { hapticSelection, hapticImpact } from './telegram';
 import { Sound } from './sound';
 
@@ -79,7 +80,46 @@ export default function SettingsModal({ onClose, onWalletDisconnect }: Props) {
             <Toggle checked={Settings.vibration} onChange={handleVibration} />
           </div>
 
+          {/* Debug-блок: показывает текущий баланс и позволяет начислить MRG
+              для тестирования покупок. Полезно когда баланс мал. */}
+          <div className="setting-row" style={{ marginTop: 16 }}>
+            <div className="setting-label">
+              <span style={{ display: 'block' }}>Баланс</span>
+              <span style={{ fontSize: 11, opacity: 0.6 }}>{formatMRG(getBalance())} MRG</span>
+            </div>
+            <button
+              className="action-btn"
+              style={{ padding: '6px 12px', minHeight: 0 }}
+              onClick={() => {
+                Sound.click();
+                earnMRG(1_000_000);
+                hapticImpact('medium');
+                rerender();
+              }}
+            >
+              + 1 000 000
+            </button>
+          </div>
+
           <div className="setting-actions">
+            <button
+              className="action-btn"
+              onClick={() => {
+                Sound.click();
+                try { localStorage.removeItem('acki_merge_tutorial_seen'); } catch {}
+                alert('Обучение будет показано при следующем входе в игру.');
+              }}
+              title="Показать обучение заново"
+            >
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10"/>
+                  <path d="M9 9a3 3 0 1 1 5.83 1c0 2-3 2-3 4"/>
+                  <line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+                <span>Показать обучение заново</span>
+              </span>
+            </button>
             <button className="action-btn action-btn-danger" onClick={() => { Sound.click(); setView('confirmDisconnect'); }}>
               <DisconnectIcon /> <span>{t('settings.disconnect')}</span>
             </button>

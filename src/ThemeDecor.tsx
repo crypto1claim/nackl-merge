@@ -500,16 +500,6 @@ function DecorChinaLanterns() {
     { char: '龍', x: 82, y: 70, size: 55, delay: 5,   duration: 17 },
     { char: '吉', x: 50, y: 48, size: 50, delay: 9,   duration: 15 },
   ];
-  // Лепестки сакуры — падают
-  const petals = Array.from({ length: 24 }, (_, i) => ({
-    x: (i * 4.71) % 100,
-    size: 8 + (i % 3) * 3,
-    delay: -(i * 0.6),
-    duration: 11 + (i % 4) * 2,
-    rot: (i * 37) % 360,
-    drift: 20 + (i % 5) * 10,
-  }));
-
   return (
     <div className="theme-decor decor-china">
       {/* Красный туман-зарево вверху */}
@@ -607,17 +597,7 @@ function DecorChinaLanterns() {
         }}>{c.char}</div>
       ))}
 
-      {/* Лепестки сакуры */}
-      {petals.map((p, i) => (
-        <SakuraPetal key={`p${i}`} style={{
-          left: `${p.x}%`,
-          width: p.size, height: p.size,
-          animationDelay: `${p.delay}s`,
-          animationDuration: `${p.duration}s`,
-          '--cn-rot': `${p.rot}deg`,
-          '--cn-drift': `${p.drift}px`,
-        } as React.CSSProperties}/>
-      ))}
+      {/* Лепестки сакуры убраны — на мобилках их анимация глючила */}
     </div>
   );
 }
@@ -672,26 +652,6 @@ function BambooStalk({ x, height, segments }: { x: number; height: number; segme
     </g>
   );
 }
-
-/** Лепесток сакуры — розовый с тонкой текстурой */
-function SakuraPetal({ style }: { style: React.CSSProperties }) {
-  return (
-    <svg className="cn-petal" viewBox="0 0 20 20" style={style} aria-hidden="true">
-      <defs>
-        <radialGradient id="petal-grad" cx="50%" cy="30%">
-          <stop offset="0%" stopColor="#ffd0e0"/>
-          <stop offset="100%" stopColor="#e88aa0"/>
-        </radialGradient>
-      </defs>
-      {/* Форма лепестка */}
-      <path d="M 10 2 Q 16 6 14 12 Q 13 17 10 18 Q 7 17 6 12 Q 4 6 10 2 Z"
-            fill="url(#petal-grad)" stroke="#c06080" strokeWidth="0.3"/>
-      {/* Светлый блик */}
-      <ellipse cx="9" cy="6" rx="1.5" ry="2.5" fill="#ffe8f0" opacity="0.6"/>
-    </svg>
-  );
-}
-
 
 function DecorHalloween() {
   const pumpkins = [
