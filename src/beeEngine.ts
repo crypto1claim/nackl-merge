@@ -12,7 +12,10 @@ import __wbg_init, {
 } from '@teamgosh/bee-sdk';
 
 export const APP_ID   = '0x0000000000000000000000000000000000000000000000000000000000000018';
-const ENDPOINTS       = ['mainnet.ackinacki.org'];
+// ВАЖНО: схему https:// указывать обязательно. Без неё SDK строит запрос на
+// http://mainnet.ackinacki.org:8600 — этот адрес недоступен из браузера и
+// блокируется как mixed-content на https-деплое (Vercel) → кошелёк не подключается.
+const ENDPOINTS       = ['https://mainnet.ackinacki.org'];
 const MINING_DURATION = 15 * 60 * 1000;
 const STORAGE_PREFIX  = 'acki_merge_bee_';
 
