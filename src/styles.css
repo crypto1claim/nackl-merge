@@ -149,7 +149,10 @@ canvas {
 }
 
 /* ============ Меню ============ */
-.menu-screen { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; padding: 24px; overflow: hidden; }
+/* overflow-y: auto + align-items: safe center — позволяет прокрутить контент
+   когда экранная клавиатура поднимается (нужно для поля имени AN Wallet).
+   `safe center` центрирует если влезает, иначе прижимает к верху без обрезания. */
+.menu-screen { position: fixed; inset: 0; display: flex; align-items: safe center; justify-content: center; padding: 24px; overflow-y: auto; -webkit-overflow-scrolling: touch; scroll-padding-bottom: 280px; }
 .menu-glow { position: absolute; border-radius: 50%; filter: blur(80px); opacity: 0.5; z-index: 0; pointer-events: none; }
 .menu-glow-1 { width: 320px; height: 320px; background: var(--accent); top: -80px; left: -80px; animation: float-1 8s ease-in-out infinite; }
 .menu-glow-2 { width: 280px; height: 280px; background: var(--accent-secondary); bottom: -60px; right: -60px; animation: float-2 10s ease-in-out infinite; }
