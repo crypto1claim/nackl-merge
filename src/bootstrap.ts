@@ -40,7 +40,6 @@ if (typeof localStorage !== 'undefined' && !localStorage.getItem(RESET_FLAG)) {
     try { localStorage.removeItem(k); } catch { /* */ }
   }
   // Стартовый баланс 0 MRG — все начнут как новые пользователи.
-  // Тестовая кнопка «+1 000 000» в Settings даёт MRG для теста покупок.
   try {
     localStorage.setItem('acki_merge_mrg', '0');
     localStorage.setItem('acki_merge_best_session', '0');

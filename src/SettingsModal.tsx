@@ -12,8 +12,7 @@ import { useState } from 'react';
 import { t, getLang, setLang, type Lang } from './i18n';
 import { Settings } from './settings';
 import { disconnectWallet, type WalletState } from './wallet';
-import { earnMRG, getBalance, formatMRG } from './currency';
-import { hapticSelection, hapticImpact } from './telegram';
+import { hapticSelection } from './telegram';
 import { Sound } from './sound';
 
 interface Props {
@@ -69,27 +68,6 @@ export default function SettingsModal({ onClose, onWalletDisconnect }: Props) {
           {/* Тогл вибрации убран — на Telegram Mini App в большинстве
               телефонов вибрация работает нестабильно. Когда исправят —
               вернём. */}
-
-          {/* Debug-блок: показывает текущий баланс и позволяет начислить MRG
-              для тестирования покупок. Полезно когда баланс мал. */}
-          <div className="setting-row" style={{ marginTop: 16 }}>
-            <div className="setting-label">
-              <span style={{ display: 'block' }}>Баланс</span>
-              <span style={{ fontSize: 11, opacity: 0.6 }}>{formatMRG(getBalance())} MRG</span>
-            </div>
-            <button
-              className="action-btn"
-              style={{ padding: '6px 12px', minHeight: 0 }}
-              onClick={() => {
-                Sound.click();
-                earnMRG(1_000_000);
-                hapticImpact('medium');
-                rerender();
-              }}
-            >
-              + 1 000 000
-            </button>
-          </div>
 
           <div className="setting-actions">
             <button
