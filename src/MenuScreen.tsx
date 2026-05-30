@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { connectWallet, confirmAuthorization, type WalletState } from './wallet';
-import { hapticSelection, hapticImpact, hapticNotification } from './telegram';
+import { hapticSelection, hapticImpact, hapticNotification, tg } from './telegram';
 import { t } from './i18n';
 import { COIN_SET_DEFAULT, COIN_SET_ALT } from './coin_sets';
 import { Sound } from './sound';
@@ -41,7 +41,14 @@ export default function MenuScreen({ onConnected, onSettings, onShop, onAbout, o
         setConnecting(false);
       }
     } catch (e) {
-      setError(t('menu.error'));
+      const msg = String((e as any)?.message ?? e);
+      // Самая частая причина — пользователь ввёл имя, которого нет в сети
+      // (get_miner_address_by_wallet_name → KitError Account 205).
+      if (/wallet name|miner address|account|205|not found/i.test(msg)) {
+        setError('AN Wallet с таким именем не найден. Установи AN Wallet, зарегистрируй имя и введи его точно.');
+      } else {
+        setError(t('menu.error'));
+      }
       hapticNotification('error');
       setConnecting(false);
     }
@@ -157,9 +164,20 @@ export default function MenuScreen({ onConnected, onSettings, onShop, onAbout, o
         ) : pendingState?.pendingDeepLink ? (
           <div className="menu-wallet-connect">
             <p className="menu-auth-hint">Открой AN Wallet и подтверди подключение:</p>
-            <a href={pendingState.pendingDeepLink} className="menu-cta menu-cta-deeplink" target="_blank" rel="noreferrer">
+            <button
+              className="menu-cta menu-cta-deeplink"
+              onClick={() => {
+                const url = pendingState.pendingDeepLink!;
+                Sound.click();
+                hapticImpact('medium');
+                // Внутри Telegram обычный target="_blank" часто не открывает внешнюю
+                // ссылку — нужно дёргать нативный openLink. Фолбэк на window.open для браузера.
+                if (tg?.openLink) tg.openLink(url);
+                else window.open(url, '_blank', 'noopener');
+              }}
+            >
               <WalletIcon /> Открыть AN Wallet
-            </a>
+            </button>
             <button
               className={`menu-cta menu-cta-secondary ${waitingConfirm ? 'connecting' : ''}`}
               onClick={handleConfirmAuth}
@@ -171,6 +189,7 @@ export default function MenuScreen({ onConnected, onSettings, onShop, onAbout, o
           </div>
         ) : (
           <div className="menu-wallet-connect">
+            <p className="menu-auth-hint">Нужен установленный AN Wallet с зарегистрированным именем. Введи это имя:</p>
             <input
               className="menu-wallet-input"
               type="text"
