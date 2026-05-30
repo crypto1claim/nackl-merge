@@ -480,10 +480,8 @@ function ShakeDamageButton({
           />
         </svg>
 
-        {/* Процент charge — маленькая надпись, только если есть прогресс и нет ready */}
-        {state.charge > 0 && state.ready === 0 && (
-          <span className="shake-damage-percent">{Math.floor(state.charge)}%</span>
-        )}
+        {/* Прогресс заряда виден по круговому индикатору — текстовый процент убран,
+            он визуально загромождал кнопку. */}
       </button>
     </div>
   );

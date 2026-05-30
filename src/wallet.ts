@@ -61,8 +61,10 @@ export function disconnectWallet(): WalletState {
 }
 
 export function shortAddress(address: string): string {
-  if (address.length < 10) return address;
-  return `${address.slice(0, 5)}...${address.slice(-3)}`;
+  // AN Wallet name — это короткое читаемое имя (напр. "cryptoclaim"), его
+  // не надо урезать. Урезаем только длинные строки вида ethereum-адреса.
+  if (address.length <= 16) return address;
+  return `${address.slice(0, 6)}…${address.slice(-4)}`;
 }
 
 export function checkMinerReady(): boolean {
