@@ -7,12 +7,18 @@
 //   - Если НЕТ → переадресация на майнинг-ферму бота
 //                 (внешняя ссылка, открывается в Telegram)
 //
+// Язык: первый запуск на английском (см. i18n detectInitialLang).
+// На этом экране есть переключатель RU/EN — выбор сохраняется и
+// действует во всей игре.
+//
 // Флаг "пользователь видел onboarding" хранится в localStorage.
 // ============================================================
 
-import { tg, hapticNotification } from './telegram';
+import { useState } from 'react';
+import { tg, hapticNotification, hapticSelection } from './telegram';
 import { Sound } from './sound';
 import { MINING_FARM_URL } from './config';
+import { t, getLang, setLang, type Lang } from './i18n';
 
 const STORAGE_KEY = 'nackl_merge_onboarding_seen';
 
@@ -31,6 +37,17 @@ interface Props {
 }
 
 export default function OnboardingScreen({ onProceed }: Props) {
+  const [, force] = useState(0);
+  const lang = getLang();
+
+  const handleLang = (next: Lang) => {
+    if (next === lang) return;
+    Sound.select();
+    hapticSelection();
+    setLang(next);
+    force((n) => n + 1);
+  };
+
   const handleHaveWallet = () => {
     Sound.unlock();
     hapticNotification('success');
@@ -57,32 +74,46 @@ export default function OnboardingScreen({ onProceed }: Props) {
       <div className="menu-glow menu-glow-2" />
 
       <div className="onboarding-content">
+        {/* Переключатель языка — выбор сохраняется на всю игру */}
+        <div className="onboarding-lang">
+          <div className="lang-toggle">
+            <button
+              className={`lang-btn ${lang === 'en' ? 'active' : ''}`}
+              onClick={() => handleLang('en')}
+            >EN</button>
+            <button
+              className={`lang-btn ${lang === 'ru' ? 'active' : ''}`}
+              onClick={() => handleLang('ru')}
+            >RU</button>
+          </div>
+        </div>
+
         {/* Брендовый блок с логотипом */}
         <div className="onboarding-hero">
           <img className="onboarding-logo" src="nackl_merge_logo.png" alt="NACKL MERGE" />
           <div className="onboarding-tagline">
-            Suika-style merge game в экосистеме Acki Nacki
+            {t('onboarding.tagline')}
           </div>
         </div>
 
         {/* Вопрос */}
         <div className="onboarding-card">
           <div className="onboarding-q-title">
-            У тебя уже есть Acki Nacki Wallet?
+            {t('onboarding.q_title')}
           </div>
           <div className="onboarding-q-sub">
-            Это нужно для подключения к игре и получения наград $NACKL
+            {t('onboarding.q_sub')}
           </div>
 
           {/* Краткое описание ключевых механик */}
           <div className="onboarding-rules">
             <div className="onboarding-rule">
               <span className="onboarding-rule-icon">🪙</span>
-              <span>Сливай одинаковые монеты — собирай $NACKL, копи MRG</span>
+              <span>{t('onboarding.rule1')}</span>
             </div>
             <div className="onboarding-rule">
-              <span className="onboarding-rule-icon">⚡</span>
-              <span>Делай комбо ×10+ → заряжай Shake Damage. Максимум 3 использования за партию</span>
+              <span className="onboarding-rule-icon">🏺</span>
+              <span>{t('onboarding.rule2')}</span>
             </div>
           </div>
 
@@ -94,8 +125,8 @@ export default function OnboardingScreen({ onProceed }: Props) {
             >
               <span className="onboarding-btn-icon">✓</span>
               <div className="onboarding-btn-text">
-                <div className="onboarding-btn-title">Да, есть кошелёк</div>
-                <div className="onboarding-btn-sub">Перейти в игру и подключить</div>
+                <div className="onboarding-btn-title">{t('onboarding.yes_title')}</div>
+                <div className="onboarding-btn-sub">{t('onboarding.yes_sub')}</div>
               </div>
             </button>
 
@@ -106,14 +137,14 @@ export default function OnboardingScreen({ onProceed }: Props) {
             >
               <span className="onboarding-btn-icon">⚡</span>
               <div className="onboarding-btn-text">
-                <div className="onboarding-btn-title">Нет, я новичок</div>
-                <div className="onboarding-btn-sub">Создать кошелёк и начать майнить →</div>
+                <div className="onboarding-btn-title">{t('onboarding.no_title')}</div>
+                <div className="onboarding-btn-sub">{t('onboarding.no_sub')}</div>
               </div>
             </button>
           </div>
 
           <div className="onboarding-disclaimer">
-            Без подключённого Acki Nacki Wallet играть нельзя — это часть экосистемы.
+            {t('onboarding.disclaimer')}
           </div>
         </div>
       </div>

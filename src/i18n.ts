@@ -1,9 +1,7 @@
 // ============================================================
 // Простая i18n-система без зависимостей.
-// Два языка: RU и EN. Автоопределение из Telegram при первом запуске.
+// Два языка: RU и EN. Первый запуск — на английском, дальше по выбору юзера.
 // ============================================================
-
-import { tg } from './telegram';
 
 export type Lang = 'ru' | 'en';
 
@@ -161,6 +159,18 @@ const TRANSLATIONS = {
     // HUD
     'hud.balance': 'БАЛАНС',
     'hud.earned': 'ЗАРАБОТАНО',
+
+    // Онбординг (первый экран)
+    'onboarding.tagline': 'Suika-style merge game в экосистеме Acki Nacki',
+    'onboarding.q_title': 'У тебя уже есть Acki Nacki Wallet?',
+    'onboarding.q_sub': 'Это нужно для подключения к игре и получения наград $NACKL',
+    'onboarding.rule1': 'Сливай одинаковые монеты — собирай $NACKL, копи MRG',
+    'onboarding.rule2': 'Дойди до монеты NACKL и не дай банке переполниться',
+    'onboarding.yes_title': 'Да, есть кошелёк',
+    'onboarding.yes_sub': 'Перейти в игру и подключить',
+    'onboarding.no_title': 'Нет, я новичок',
+    'onboarding.no_sub': 'Создать кошелёк и начать майнить →',
+    'onboarding.disclaimer': 'Без подключённого Acki Nacki Wallet играть нельзя — это часть экосистемы.',
   },
   en: {
     'menu.subtitle': 'Play and mine NACKL',
@@ -300,26 +310,32 @@ const TRANSLATIONS = {
 
     'hud.balance': 'BALANCE',
     'hud.earned': 'EARNED',
+
+    // Onboarding (first screen)
+    'onboarding.tagline': 'Suika-style merge game in the Acki Nacki ecosystem',
+    'onboarding.q_title': 'Do you already have an Acki Nacki Wallet?',
+    'onboarding.q_sub': 'Needed to connect to the game and earn $NACKL rewards',
+    'onboarding.rule1': 'Merge identical coins — collect $NACKL, stack MRG',
+    'onboarding.rule2': "Reach the NACKL coin and don't let the jar overflow",
+    'onboarding.yes_title': 'Yes, I have a wallet',
+    'onboarding.yes_sub': 'Go to the game and connect',
+    'onboarding.no_title': "No, I'm new",
+    'onboarding.no_sub': 'Create a wallet and start mining →',
+    'onboarding.disclaimer': "You can't play without a connected Acki Nacki Wallet — it's part of the ecosystem.",
   },
 } as const;
 
 type TranslationKey = keyof typeof TRANSLATIONS['ru'];
 
-// Определяем язык при первом запуске
+// Определяем язык при первом запуске.
+// По умолчанию игра стартует на АНГЛИЙСКОМ. Дальше — как выберет сам
+// пользователь (выбор сохраняется в localStorage и имеет приоритет).
 function detectInitialLang(): Lang {
-  // Если уже сохранён выбор пользователя — берём его
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved === 'ru' || saved === 'en') return saved;
   } catch { /* */ }
-
-  // Иначе пробуем взять из Telegram
-  const tgLang = (tg as any)?.initDataUnsafe?.user?.language_code;
-  if (typeof tgLang === 'string' && tgLang.toLowerCase().startsWith('ru')) return 'ru';
-
-  // Fallback: язык браузера
-  const browserLang = navigator.language?.toLowerCase() ?? 'en';
-  return browserLang.startsWith('ru') ? 'ru' : 'en';
+  return 'en';
 }
 
 // Текущее значение и подписчики

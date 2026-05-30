@@ -4919,6 +4919,14 @@ button:active:not(.toggle):not(.lang-btn):not(.modal-close)::after {
   z-index: 2;
 }
 
+/* Переключатель языка — прижат вправо над логотипом */
+.onboarding-lang {
+  width: 100%;
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: -8px;
+}
+
 /* Hero — логотип сверху */
 .onboarding-hero {
   display: flex;
