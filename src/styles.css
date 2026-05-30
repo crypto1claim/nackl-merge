@@ -5334,7 +5334,9 @@ button:active:not(.toggle):not(.lang-btn):not(.modal-close)::after {
   padding: 6px 10px;
 }
 
-/* === Powerup mini — в одном стиле с остальными HUD-кнопками === */
+/* === Powerup mini — в одном стиле с остальными HUD-кнопками.
+   overflow: visible нужен чтобы бейдж количества не обрезался,
+   когда выходит за край круглой кнопки. */
 .powerup-mini {
   position: relative;
   width: 36px;
@@ -5349,6 +5351,7 @@ button:active:not(.toggle):not(.lang-btn):not(.modal-close)::after {
   transition: transform 0.12s;
   padding: 0;
   flex-shrink: 0;
+  overflow: visible;
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   box-shadow:
@@ -5365,38 +5368,41 @@ button:active:not(.toggle):not(.lang-btn):not(.modal-close)::after {
   height: 18px;
   filter: drop-shadow(0 0 4px currentColor);
 }
-/* Бейдж количества — снизу-справа, чётко читаемая цифра,
-   высокий контраст: тёмный круг с белой цифрой. */
+/* Бейдж количества — сверху-справа кнопки, максимально контрастный:
+   ярко-жёлтый круг с чёрной цифрой и тёмной обводкой. Высокий z-index
+   чтобы не перекрывался флекс-соседями. */
 .powerup-mini-count {
   position: absolute;
-  bottom: -4px;
-  right: -4px;
-  min-width: 18px;
+  top: -6px;
+  right: -6px;
+  width: 18px;
   height: 18px;
-  padding: 0 5px;
-  border-radius: 999px;
-  background: #1a1234;
-  color: #fff;
+  border-radius: 50%;
+  background: #ffd84d;
+  color: #000;
   font-size: 11px;
   font-weight: 900;
   line-height: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
-  border: 2px solid rgba(255, 255, 255, 0.85);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  border: 2px solid #0a0814;
   font-variant-numeric: tabular-nums;
+  letter-spacing: -0.5px;
+  z-index: 5;
+  pointer-events: none;
 }
-/* Если бустер исчерпан за партию — кнопка тусклая, без glow */
+/* Если бустер исчерпан за партию — кнопка тусклая, бейдж серый */
 .powerup-mini.is-spent {
-  opacity: 0.35;
+  opacity: 0.45;
   cursor: not-allowed;
-  filter: grayscale(0.7);
+  filter: grayscale(0.6);
 }
 .powerup-mini.is-spent .powerup-mini-count {
-  background: #444;
-  border-color: rgba(255, 255, 255, 0.4);
-  color: rgba(255, 255, 255, 0.6);
+  background: linear-gradient(180deg, #666 0%, #333 100%);
+  color: rgba(255, 255, 255, 0.55);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
 }
 /* На узких экранах HUD плотный — ещё компактнее */
 @media (max-width: 380px) {
