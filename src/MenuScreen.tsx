@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { connectWallet, confirmAuthorization, type WalletState } from './wallet';
 import { hapticSelection, hapticImpact, hapticNotification, tg } from './telegram';
 import { t } from './i18n';
@@ -23,6 +23,28 @@ export default function MenuScreen({ onConnected, onSettings, onShop, onAbout, o
   const [walletName, setWalletName] = useState('');
   const [pendingState, setPendingState] = useState<WalletState | null>(null);
   const [waitingConfirm, setWaitingConfirm] = useState(false);
+  // Сдвиг контента вверх, когда открыта экранная клавиатура (чтобы поле ввода
+  // имени кошелька не пряталось за ней). Считаем по visualViewport.
+  const [kbShift, setKbShift] = useState(0);
+  const [inputFocused, setInputFocused] = useState(false);
+
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const recompute = () => {
+      const keyboard = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+      const focused = document.activeElement?.classList?.contains('menu-wallet-input');
+      // Поднимаем контент примерно на 55% высоты клавиатуры — этого хватает,
+      // чтобы поле и кнопка оказались над ней, и не уезжало слишком высоко.
+      setKbShift(focused && keyboard > 120 ? Math.min(Math.round(keyboard * 0.55), 240) : 0);
+    };
+    vv.addEventListener('resize', recompute);
+    vv.addEventListener('scroll', recompute);
+    return () => { vv.removeEventListener('resize', recompute); vv.removeEventListener('scroll', recompute); };
+  }, []);
+
+  // Когда поле теряет фокус — гарантированно возвращаем контент на место.
+  useEffect(() => { if (!inputFocused) setKbShift(0); }, [inputFocused]);
 
   const handleConnect = async () => {
     if (!walletName.trim()) { setError('Введи имя AN Wallet'); return; }
@@ -197,8 +219,15 @@ export default function MenuScreen({ onConnected, onSettings, onShop, onAbout, o
               value={walletName}
               onChange={e => setWalletName(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleConnect()}
+              onFocus={(e) => {
+                setInputFocused(true);
+                // На iOS visualViewport обновляется не сразу — подстрахуемся скроллом.
+                setTimeout(() => e.target.scrollIntoView({ block: 'center', behavior: 'smooth' }), 300);
+              }}
+              onBlur={() => setInputFocused(false)}
               disabled={connecting}
               autoComplete="off"
+              autoCapitalize="off"
               spellCheck={false}
             />
             <button

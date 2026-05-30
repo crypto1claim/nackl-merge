@@ -120,6 +120,18 @@ export class GameEngine {
   private rafId = 0;
   private running = false;
   private spritesReady = false;
+  // Масштаб логических координат → backing store (с учётом capped DPR)
+  private scaleX = 1;
+  private scaleY = 1;
+  // Оффскрин-слой со статикой (фон + декор + банка). Перерисовывается только
+  // при ресайзе/смене темы, а не каждый кадр — это убирает основную нагрузку.
+  private bgCanvas: HTMLCanvasElement | null = null;
+  private bgCtx: CanvasRenderingContext2D | null = null;
+  private bgDirty = true;
+  private bgThemeId = '';
+  // Idle-оптимизация: когда сцена статична (монеты лежат, нет эффектов),
+  // пропускаем физику и перерисовку — экономит батарею.
+  private needsRender = true;
   // Эффекты
   private particles = new ParticleSystem();
   private cameraShake = 0;
@@ -154,6 +166,10 @@ export class GameEngine {
 
     preloadSprites().then(() => {
       this.spritesReady = true;
+      // Спрайты загрузились асинхронно — пересобрать статичный слой,
+      // чтобы тематический декор (напр. NACKL в фоне) попал в кэш.
+      this.bgDirty = true;
+      this.needsRender = true;
       this.cb.onSpritesReady?.();
     });
 
@@ -162,8 +178,9 @@ export class GameEngine {
     this.emitBombState();
   }
 
-  // Вызывается из App при смене темы — заставляет canvas обновить фон при следующем рендере
-  onThemeChange() { /* рендер каждый кадр и так читает текущую тему */ }
+  // Вызывается из App при смене темы — помечаем статичный слой как «грязный»,
+  // чтобы фон+банка перерисовались под новую тему на следующем кадре.
+  onThemeChange() { this.bgDirty = true; this.needsRender = true; }
 
   /** Поставить игру на паузу. Физика не считается, ввод заблокирован. */
   pause() {
@@ -176,6 +193,7 @@ export class GameEngine {
     if (!this.paused) return;
     this.paused = false;
     this.lastTime = performance.now();
+    this.needsRender = true;
   }
 
   isPaused() { return this.paused; }
@@ -551,12 +569,26 @@ export class GameEngine {
   }
 
   private resize() {
-    const dpr = window.devicePixelRatio || 1;
+    // DPR ограничиваем до 2: на iPhone с dpr=3 backing store втрое больше по
+    // площади (×2.25), что сильно греет GPU без видимой разницы на таком масштабе.
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const rect = this.canvas.getBoundingClientRect();
     if (rect.width === 0 || rect.height === 0) return;
-    this.canvas.width = rect.width * dpr;
-    this.canvas.height = rect.height * dpr;
-    this.ctx.setTransform((rect.width / W) * dpr, 0, 0, (rect.height / H) * dpr, 0, 0);
+    this.canvas.width = Math.round(rect.width * dpr);
+    this.canvas.height = Math.round(rect.height * dpr);
+    this.scaleX = (rect.width / W) * dpr;
+    this.scaleY = (rect.height / H) * dpr;
+    this.ctx.setTransform(this.scaleX, 0, 0, this.scaleY, 0, 0);
+
+    // Оффскрин под статичный слой — тот же backing-размер, рисуем 1:1.
+    if (!this.bgCanvas) {
+      this.bgCanvas = document.createElement('canvas');
+      this.bgCtx = this.bgCanvas.getContext('2d');
+    }
+    this.bgCanvas.width = this.canvas.width;
+    this.bgCanvas.height = this.canvas.height;
+    this.bgDirty = true;
+    this.needsRender = true;
   }
 
   private attachPointerHandlers() {
@@ -568,15 +600,17 @@ export class GameEngine {
       if (this.gameOver || this.paused) return;
       this.canvas.setPointerCapture(e.pointerId);
       this.pointerX = toLogicalX(e.clientX);
+      this.needsRender = true;
     });
     this.canvas.addEventListener('pointermove', (e) => {
       if (this.gameOver || this.paused) return;
-      if (this.pointerX !== null) this.pointerX = toLogicalX(e.clientX);
+      if (this.pointerX !== null) { this.pointerX = toLogicalX(e.clientX); this.needsRender = true; }
     });
     const release = () => {
       if (this.gameOver || this.paused) return;
       if (this.aiming) this.dropAiming();
       this.pointerX = null;
+      this.needsRender = true;
     };
     this.canvas.addEventListener('pointerup', release);
     this.canvas.addEventListener('pointercancel', release);
@@ -634,12 +668,47 @@ export class GameEngine {
     this.nextLevel = randomSpawnLevel();
     this.aiming = { x: W / 2, level, def: FRUITS[level] };
     this.cb.onNextLevelChange?.(this.nextLevel);
+    this.needsRender = true; // показать новую целящуюся монету, даже если поле в покое
+  }
+
+  /**
+   * Активна ли сцена — есть ли что обновлять/перерисовывать.
+   * Если всё лежит без движения и нет эффектов — кадр можно пропустить,
+   * что резко снижает нагрузку (и нагрев) когда банка просто стоит заполненной.
+   */
+  private isSceneActive(bodies: Matter.Body[]): boolean {
+    if (this.needsRender) return true;
+    if (this.particles.particles.length > 0) return true;
+    if (this.comboPopups.length > 0) return true;
+    if (this.cameraShake > 0) return true;
+    if (this.aiming && this.pointerX !== null) return true;
+    if (!this.aiming && performance.now() < this.nextSpawnAt + 32) return true;
+    for (const body of bodies) {
+      const data = (body as any).fruitData as FruitData | undefined;
+      if (!data) continue;
+      if (data.spawnAnim > 0) return true;
+      // тело ещё движется — нужно считать физику
+      if (Math.abs(body.velocity.x) > 0.06 || Math.abs(body.velocity.y) > 0.06
+          || Math.abs(body.angularVelocity) > 0.01) return true;
+      if (data.dangerSince !== null) return true; // мигающая danger-линия
+    }
+    return false;
   }
 
   private loop = (time: number) => {
     if (!this.running) return;
     const dt = Math.min((time - this.lastTime), 33);
     this.lastTime = time;
+
+    // Один раз за кадр берём список тел (раньше allBodies звался 4-5 раз).
+    const bodies = Matter.Composite.allBodies(this.world);
+
+    // Idle-skip: нечего обновлять и рисовать — выходим дёшево.
+    if (!this.isSceneActive(bodies)) {
+      this.rafId = requestAnimationFrame(this.loop);
+      return;
+    }
+    this.needsRender = false;
 
     if (!this.gameOver && !this.paused) {
       if (this.aiming && this.pointerX !== null) {
@@ -650,7 +719,7 @@ export class GameEngine {
       }
       if (!this.aiming && time >= this.nextSpawnAt) this.spawnAiming();
       Matter.Engine.update(this.engine, dt);
-      for (const body of Matter.Composite.allBodies(this.world)) {
+      for (const body of bodies) {
         const data = (body as any).fruitData as FruitData | undefined;
         if (data && data.spawnAnim > 0) data.spawnAnim = Math.max(0, data.spawnAnim - dt / 250);
       }
@@ -668,7 +737,7 @@ export class GameEngine {
       if (p.life <= 0) this.comboPopups.splice(i, 1);
     }
 
-    this.render();
+    this.render(bodies);
     this.rafId = requestAnimationFrame(this.loop);
   };
 
@@ -700,19 +769,19 @@ export class GameEngine {
   // -----------------------------------------------------------
   // RENDER — читает текущую тему каждый кадр
   // -----------------------------------------------------------
-  private render() {
-    const ctx = this.ctx;
+  /**
+   * Перерисовать статичный слой (фон + декор + банка) в оффскрин-канвас.
+   * Выполняется ТОЛЬКО при ресайзе/смене темы — а не каждый кадр.
+   * Раньше эти ~28 градиентов и сотни ctx-операций считались 60 раз/сек,
+   * что и было главной причиной нагрева и просадок на телефоне.
+   */
+  private ensureStaticLayer() {
     const theme = getTheme();
+    if (!this.bgDirty && this.bgThemeId === theme.id) return;
+    const ctx = this.bgCtx;
+    if (!ctx || !this.bgCanvas) return;
+    ctx.setTransform(this.scaleX, 0, 0, this.scaleY, 0, 0);
     ctx.clearRect(0, 0, W, H);
-
-    // Применяем shake камеры
-    ctx.save();
-    if (this.cameraShake > 0) {
-      const intensity = (this.cameraShake / 250) * this.cameraShakeStrength;
-      const dx = (Math.random() - 0.5) * intensity;
-      const dy = (Math.random() - 0.5) * intensity;
-      ctx.translate(dx, dy);
-    }
 
     // === АТМОСФЕРНЫЙ ФОН БАНКИ — глубокий, многослойный ===
     const tNow = performance.now() / 1000;
@@ -761,7 +830,7 @@ export class GameEngine {
     ctx.fillRect(0, 0, W, H);
 
     // === ТЕМАТИЧЕСКИЙ ПАТТЕРН ПОД МОНЕТАМИ ===
-    this.drawThemeDecor(theme.id);
+    this.drawThemeDecor(ctx, theme.id);
 
     // === ВЕРТИКАЛЬНЫЕ СВЕТОВЫЕ ЛУЧИ — реалистичный god-ray эффект ===
     ctx.save();
@@ -1006,11 +1075,43 @@ export class GameEngine {
     ctx.ellipse(jarCenterX, jarBottom - 2, bottomRx + 4, bottomRy + 2, 0, Math.PI * 0.95, Math.PI * 2.05);
     ctx.stroke();
 
-    // --- 11. Линия проигрыша (danger line) — внутри банки, у горлышка ---
-    const anyDanger = Matter.Composite.allBodies(this.world).some((b) => {
-      const d = (b as any).fruitData as FruitData | undefined;
-      return d?.dangerSince != null;
-    });
+    this.bgDirty = false;
+    this.bgThemeId = theme.id;
+  }
+
+  // -----------------------------------------------------------
+  // RENDER — рисует только ЖИВОЙ слой (банка/фон берутся из кэша)
+  // -----------------------------------------------------------
+  private render(bodies: Matter.Body[]) {
+    const ctx = this.ctx;
+
+    // 1) Готовим/обновляем статичный слой и блитим его 1:1 (со смещением shake).
+    this.ensureStaticLayer();
+    let sdx = 0, sdy = 0;
+    if (this.cameraShake > 0) {
+      const intensity = (this.cameraShake / 250) * this.cameraShakeStrength;
+      sdx = (Math.random() - 0.5) * intensity;
+      sdy = (Math.random() - 0.5) * intensity;
+    }
+    ctx.clearRect(0, 0, W, H);
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    if (this.bgCanvas) ctx.drawImage(this.bgCanvas, sdx * this.scaleX, sdy * this.scaleY);
+    ctx.restore();
+
+    // 2) Живой слой — в логических координатах, со смещением shake.
+    ctx.save();
+    if (sdx || sdy) ctx.translate(sdx, sdy);
+
+    const jarLeft = WALL_PADDING;
+    const jarRight = W - WALL_PADDING;
+    const jarTop = DANGER_LINE_Y;
+
+    // --- Линия проигрыша (danger line) — внутри банки, у горлышка ---
+    let anyDanger = false;
+    for (const b of bodies) {
+      if ((b as any).fruitData?.dangerSince != null) { anyDanger = true; break; }
+    }
     const pulse = anyDanger ? 0.5 + 0.5 * Math.sin(performance.now() / 100) : 0.30;
     ctx.setLineDash([6, 6]);
     ctx.strokeStyle = `rgba(255, 80, 80, ${pulse})`;
@@ -1021,11 +1122,14 @@ export class GameEngine {
     ctx.stroke();
     ctx.setLineDash([]);
 
-    const bodies = Matter.Composite.allBodies(this.world);
+    // Свечение рисуем только для крупных монет (5+) и только что появившихся —
+    // спрайты сами по себе яркие, glow для каждой мелочи зря грузит GPU.
     for (const body of bodies) {
       const data = (body as any).fruitData as FruitData | undefined;
       if (!data) continue;
-      this.drawGlow(body.position.x, body.position.y, FRUITS[data.level], data.spawnAnim);
+      if (data.level >= 5 || data.spawnAnim > 0.01) {
+        this.drawGlow(body.position.x, body.position.y, FRUITS[data.level], data.spawnAnim);
+      }
     }
     for (const body of bodies) {
       const data = (body as any).fruitData as FruitData | undefined;
@@ -1036,16 +1140,16 @@ export class GameEngine {
     // Партиклы — поверх всех монет
     this.particles.draw(ctx);
 
-    // Popup-очки (+15, +30 ×2)
+    // Popup-очки (+15, +30 ×2). Вместо дорогого shadowBlur — дешёвая тёмная подложка.
     for (const p of this.comboPopups) {
       const alpha = Math.max(0, Math.min(1, p.life));
       ctx.save();
       ctx.globalAlpha = alpha;
       ctx.font = 'bold 20px -apple-system, sans-serif';
       ctx.textAlign = 'center';
+      ctx.fillStyle = 'rgba(0,0,0,0.55)';
+      ctx.fillText(p.text, p.x + 1, p.y + 1);
       ctx.fillStyle = p.color;
-      ctx.shadowColor = p.color;
-      ctx.shadowBlur = 12;
       ctx.fillText(p.text, p.x, p.y);
       ctx.restore();
     }
@@ -1098,8 +1202,7 @@ export class GameEngine {
     return `rgba(${m[1]}, ${m[2]}, ${m[3]}, ${newOpacity})`;
   }
 
-  private drawThemeDecor(themeId: string) {
-    const ctx = this.ctx;
+  private drawThemeDecor(ctx: CanvasRenderingContext2D, themeId: string) {
     const t = performance.now() / 1000;
 
     ctx.save();
