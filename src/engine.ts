@@ -18,6 +18,11 @@ const H = 600;
 
 const WALL_THICKNESS = 60;
 const WALL_PADDING = 8;
+// Верхняя линия, по которой выравниваются прицельные монеты любого размера.
+// Чтобы большие монеты не вылезали за горлышко банки, считаем центр спавна
+// как AIM_TOP_LINE + radius монеты (см. aimY ниже). SPAWN_Y оставлен как
+// дефолт для системного спавна (без размера), но боевые позиции считаются динамически.
+const AIM_TOP_LINE = 28;
 const SPAWN_Y = 50;
 const SPAWN_DROP_DELAY = 400;
 const DANGER_LINE_Y = SPAWN_Y + 20;
@@ -618,7 +623,8 @@ export class GameEngine {
 
   private dropAiming() {
     if (!this.aiming) return;
-    Matter.Composite.add(this.world, this.createFruitBody(this.aiming.x, SPAWN_Y, this.aiming.level));
+    const aimY = AIM_TOP_LINE + this.aiming.def.radius;
+    Matter.Composite.add(this.world, this.createFruitBody(this.aiming.x, aimY, this.aiming.level));
     Sound.drop();
     this.aiming = null;
     this.nextSpawnAt = performance.now() + SPAWN_DROP_DELAY;
@@ -1156,13 +1162,16 @@ export class GameEngine {
     ctx.globalAlpha = 1;
 
     if (this.aiming && !this.gameOver) {
-      this.drawGlow(this.aiming.x, SPAWN_Y, this.aiming.def, 0);
-      this.drawCoin(this.aiming.x, SPAWN_Y, 0, this.aiming.def, 0);
+      // Низ всех прицельных монет на одной линии (AIM_TOP_LINE + radius = центр).
+      // Это держит большие монеты внутри горлышка банки, а не свешивает их сверху.
+      const aimY = AIM_TOP_LINE + this.aiming.def.radius;
+      this.drawGlow(this.aiming.x, aimY, this.aiming.def, 0);
+      this.drawCoin(this.aiming.x, aimY, 0, this.aiming.def, 0);
       ctx.setLineDash([4, 6]);
       ctx.strokeStyle = `${this.aiming.def.glow}55`;
       ctx.lineWidth = 1.5;
       ctx.beginPath();
-      ctx.moveTo(this.aiming.x, SPAWN_Y + this.aiming.def.radius);
+      ctx.moveTo(this.aiming.x, aimY + this.aiming.def.radius);
       ctx.lineTo(this.aiming.x, H - WALL_PADDING);
       ctx.stroke();
       ctx.setLineDash([]);
