@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { GameEngine } from './engine';
 import { tg, hapticSelection } from './telegram';
-import MenuScreen, { SettingsIcon } from './MenuScreen';
+import MenuScreen from './MenuScreen';
 import SettingsModal from './SettingsModal';
 import PauseModal from './PauseModal';
 import ShopScreen from './ShopScreen';
@@ -373,11 +373,11 @@ export default function App() {
             state={bombState}
             onClick={() => engineRef.current?.detonateBomb()}
           />
+          {/* Кнопка Settings перенесена в PauseModal — это освобождает
+              место в HUD и логичнее: настройки доступны на паузе,
+              как в большинстве игр. */}
           <button className="settings-fab hud-pause" onClick={handlePauseClick} aria-label={t('pause.title')}>
             <PauseIcon />
-          </button>
-          <button className="settings-fab hud-settings" onClick={() => { Sound.click(); setShowSettings(true); }} aria-label={t('settings.title')}>
-            <SettingsIcon />
           </button>
         </div>
       </div>
@@ -433,6 +433,7 @@ export default function App() {
           onResume={handleResume}
           onRestart={() => { setPaused(false); handleRestart(); }}
           onExit={handleExitToMenu}
+          onSettings={() => setShowSettings(true)}
         />
       )}
 
