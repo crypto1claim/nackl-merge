@@ -41,17 +41,22 @@ button, a, [role="button"] {
 /* ============================================================
    HUD — единый glassmorphism-стиль. Всё высотой 36px,
    тёмное стекло, тонкий бордер. Воздух между группами.
+   КРИТИЧНО: высота HUD строго фиксирована, flex-wrap: nowrap.
+   Иначе при изменении бустеров canvas-wrap меняет высоту → canvas
+   ресайзится → ВСЕ монеты «перескакивают» в новом скейле.
    ============================================================ */
 .hud {
   width: 100%;
   max-width: 480px;
+  height: calc(56px + env(safe-area-inset-top));
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 10px;
-  padding-top: calc(10px + env(safe-area-inset-top));
+  padding: 0 10px;
+  padding-top: env(safe-area-inset-top);
   gap: 8px;
   box-sizing: border-box;
+  flex-shrink: 0;
 }
 .hud-left,
 .hud-right {
@@ -59,10 +64,11 @@ button, a, [role="button"] {
   gap: 6px;
   align-items: center;
   min-width: 0;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  height: 36px;
 }
-.hud-left { flex-shrink: 1; row-gap: 6px; }
-.hud-right { flex-shrink: 0; row-gap: 6px; justify-content: flex-end; }
+.hud-left { flex-shrink: 1; overflow: hidden; }
+.hud-right { flex-shrink: 0; justify-content: flex-end; }
 
 /* === Стандартный HUD-pill: высота 36px, тёмное стекло, тонкий бордер === */
 .hud-pill {
@@ -5448,6 +5454,13 @@ button:active:not(.toggle):not(.lang-btn):not(.modal-close)::after {
   background: linear-gradient(180deg, #666 0%, #333 100%);
   color: rgba(255, 255, 255, 0.55);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+/* Если бустер вообще не куплен — слот невидим, но место СОХРАНЯЕТСЯ
+   через visibility: hidden. Это критично: HUD не меняет ширину,
+   канвас не ресайзится, монеты не «перескакивают». */
+.powerup-mini.is-hidden {
+  visibility: hidden;
+  pointer-events: none;
 }
 /* На узких экранах HUD плотный — ещё компактнее */
 @media (max-width: 380px) {

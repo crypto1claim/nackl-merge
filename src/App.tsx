@@ -319,27 +319,28 @@ export default function App() {
           </div>
         </div>
         <div className="hud-right">
-          {/* Бустеры — встроены в HUD-right ПЕРЕД Shake Damage.
-              Показываем кнопку для КАЖДОГО купленного бустера (даже если
-              исчерпан за партию) — иначе HUD «прыгает» при использовании
-              последнего слота. Когда лимит исчерпан, кнопка серая, disabled. */}
-          {(Object.values(powerupInv).some((n) => n > 0)) && (
+          {/* Бустеры — все 3 слота всегда в DOM пока партия идёт.
+              Если бустер не куплен ИЛИ исчерпан за партию — слот
+              остаётся в DOM с visibility: hidden, чтобы HUD сохранял
+              ровно ту же ширину и канвас не ресайзился (иначе монеты
+              «перескакивают» при изменении масштаба canvas). */}
+          {inGame && (
             <div className="powerup-group">
               {POWERUPS.map((pu) => {
                 const e = engineRef.current;
                 const remaining = e ? e.getPowerupRemaining(pu.id) : powerupInv[pu.id];
                 const inInventory = powerupInv[pu.id] > 0;
-                // Не куплен вообще — слот не занимает места
-                if (!inInventory) return null;
-                const disabled = remaining <= 0;
+                const visible = inInventory;
+                const disabled = !visible || remaining <= 0;
                 return (
                   <button
                     key={pu.id}
-                    className={`powerup-mini powerup-mini-${pu.id} ${disabled ? 'is-spent' : ''}`}
+                    className={`powerup-mini powerup-mini-${pu.id} ${disabled ? 'is-spent' : ''} ${!visible ? 'is-hidden' : ''}`}
                     disabled={disabled}
+                    aria-hidden={!visible}
                     onClick={() => {
+                      if (!visible || !e) return;
                       Sound.click();
-                      if (!e) return;
                       let ok = false;
                       if (pu.id === 'extraCharge')   ok = e.applyExtraCharge();
                       if (pu.id === 'boostNext')     ok = e.applyBoostNext();
