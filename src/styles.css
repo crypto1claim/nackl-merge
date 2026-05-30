@@ -5470,12 +5470,19 @@ button:active:not(.toggle):not(.lang-btn):not(.modal-close)::after {
   color: rgba(255, 255, 255, 0.55);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
 }
-/* Если бустер вообще не куплен — слот невидим, но место СОХРАНЯЕТСЯ
-   через visibility: hidden. Это критично: HUD не меняет ширину,
-   канвас не ресайзится, монеты не «перескакивают». */
-.powerup-mini.is-hidden {
-  visibility: hidden;
-  pointer-events: none;
+/* Если бустер НЕ куплен — тусклая иконка без цветной обводки.
+   Тап откроет магазин. Это упрощает UX: игрок всегда видит что
+   есть 3 бустера и понимает что серые — это надо купить. */
+.powerup-mini.is-locked {
+  opacity: 0.4;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.04) inset,
+    0 2px 6px rgba(0, 0, 0, 0.3) !important;
+}
+.powerup-mini.is-locked .powerup-pill-icon {
+  filter: grayscale(0.7);
+  opacity: 0.7;
 }
 /* На узких экранах HUD плотный — ещё компактнее */
 @media (max-width: 380px) {

@@ -319,38 +319,50 @@ export default function App() {
           </div>
         </div>
         <div className="hud-right">
-          {/* Бустеры — все 3 слота всегда в DOM пока партия идёт.
-              Если бустер не куплен ИЛИ исчерпан за партию — слот
-              остаётся в DOM с visibility: hidden, чтобы HUD сохранял
-              ровно ту же ширину и канвас не ресайзился (иначе монеты
-              «перескакивают» при изменении масштаба canvas). */}
+          {/* Бустеры — 3 слота ВСЕГДА видны пока партия идёт.
+              Статус определяет вид:
+              - Не куплен → тусклая иконка без бейджа, тап → магазин
+              - Куплен и доступен → яркая, жёлтый бейдж с числом
+              - Куплен но исчерпан за партию → серая, серый бейдж */}
           {inGame && (
             <div className="powerup-group">
               {POWERUPS.map((pu) => {
                 const e = engineRef.current;
-                const remaining = e ? e.getPowerupRemaining(pu.id) : powerupInv[pu.id];
                 const inInventory = powerupInv[pu.id] > 0;
-                const visible = inInventory;
-                const disabled = !visible || remaining <= 0;
+                const remaining = e ? e.getPowerupRemaining(pu.id) : powerupInv[pu.id];
+                const isLocked = !inInventory;     // не куплен — тап ведёт в магазин
+                const isSpent = inInventory && remaining <= 0; // исчерпан за партию
+                const isActive = inInventory && remaining > 0;
+                let cls = `powerup-mini powerup-mini-${pu.id}`;
+                if (isLocked) cls += ' is-locked';
+                else if (isSpent) cls += ' is-spent';
                 return (
                   <button
                     key={pu.id}
-                    className={`powerup-mini powerup-mini-${pu.id} ${disabled ? 'is-spent' : ''} ${!visible ? 'is-hidden' : ''}`}
-                    disabled={disabled}
-                    aria-hidden={!visible}
+                    className={cls}
                     onClick={() => {
-                      if (!visible || !e) return;
                       Sound.click();
+                      if (isLocked) {
+                        // Не куплен — открываем магазин на вкладке бустеров
+                        engineRef.current?.pause();
+                        setPaused(true);
+                        setShowShop(true);
+                        return;
+                      }
+                      if (isSpent || !e) {
+                        hapticSelection();
+                        return;
+                      }
                       let ok = false;
                       if (pu.id === 'extraCharge')   ok = e.applyExtraCharge();
                       if (pu.id === 'boostNext')     ok = e.applyBoostNext();
                       if (pu.id === 'removeBottom')  ok = e.applyRemoveBottom();
                       if (!ok) hapticSelection();
                     }}
-                    title={pu.title}
+                    title={isLocked ? `${pu.title} — купить в магазине` : pu.title}
                   >
                     <PowerUpIcon id={pu.id} />
-                    <span className="powerup-mini-count">{remaining}</span>
+                    {isActive && <span className="powerup-mini-count">{remaining}</span>}
                   </button>
                 );
               })}
