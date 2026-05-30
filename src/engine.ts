@@ -18,12 +18,11 @@ const H = 600;
 
 const WALL_THICKNESS = 60;
 const WALL_PADDING = 8;
-// Верхняя линия, по которой выравниваются прицельные монеты любого размера.
-// Совпадает с верхом горлышка банки (neckTop = DANGER_LINE_Y - 16 = 54),
-// чтобы верхушка любой монеты не вылезала выше горла — даже для крупных.
-// Центр спавна = AIM_TOP_LINE + radius, мелкие монеты сидят в горлышке выше,
-// большие — глубже, но все верхушки на одной линии.
-const AIM_TOP_LINE = 54;
+// Aim coin (прицельная монета) висит НАД горлышком банки, как готовая упасть.
+// Низ монеты выравнивается на горлышке (AIM_BOTTOM_LINE), центр поднимается
+// с ростом размера. AIM_MIN_CENTER не даёт большим монетам уходить за HUD.
+const AIM_BOTTOM_LINE = 70; // = DANGER_LINE_Y, верх горла банки
+const AIM_MIN_CENTER = 28;  // минимальный Y центра — для очень крупных монет
 const SPAWN_Y = 50;
 const SPAWN_DROP_DELAY = 400;
 const DANGER_LINE_Y = SPAWN_Y + 20;
@@ -624,7 +623,7 @@ export class GameEngine {
 
   private dropAiming() {
     if (!this.aiming) return;
-    const aimY = AIM_TOP_LINE + this.aiming.def.radius;
+    const aimY = Math.max(AIM_MIN_CENTER, AIM_BOTTOM_LINE - this.aiming.def.radius);
     Matter.Composite.add(this.world, this.createFruitBody(this.aiming.x, aimY, this.aiming.level));
     Sound.drop();
     this.aiming = null;
@@ -1163,9 +1162,9 @@ export class GameEngine {
     ctx.globalAlpha = 1;
 
     if (this.aiming && !this.gameOver) {
-      // Низ всех прицельных монет на одной линии (AIM_TOP_LINE + radius = центр).
-      // Это держит большие монеты внутри горлышка банки, а не свешивает их сверху.
-      const aimY = AIM_TOP_LINE + this.aiming.def.radius;
+      // Низ всех монет выравнен на горлышке банки — они «висят» над ним,
+      // готовые упасть. Большие монеты выше мелких, но с минимальной границей.
+      const aimY = Math.max(AIM_MIN_CENTER, AIM_BOTTOM_LINE - this.aiming.def.radius);
       this.drawGlow(this.aiming.x, aimY, this.aiming.def, 0);
       this.drawCoin(this.aiming.x, aimY, 0, this.aiming.def, 0);
       ctx.setLineDash([4, 6]);
