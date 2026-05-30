@@ -627,12 +627,14 @@ export const Sound = new HDSoundEngine();
 // === Авто-unlock AudioContext на ЛЮБОЙ user-gesture ===
 // На iOS / Safari аудио блокируется до первого юзер-тапа. Без этого
 // после blur'ов (свернуть/развернуть мини-апп) звук просто пропадает.
-// Подвешиваем глобальные слушатели на касания/клики и при срабатывании
-// вызываем Sound.unlock() — это резюмирует контекст и звук возвращается.
+// ВАЖНО: НЕ используем { capture: true } — раньше он перехватывал
+// pointerdown до кнопок и создавал задержку клика на iOS.
+// Слушатели на bubbling phase, passive: true, на document — отрабатывают
+// после кнопок, не вмешиваясь в их обработчики.
 if (typeof window !== 'undefined') {
   const unlock = () => { Sound.unlock(); };
   ['pointerdown', 'touchstart', 'click', 'keydown'].forEach((ev) => {
-    window.addEventListener(ev, unlock, { capture: true, passive: true });
+    document.addEventListener(ev, unlock, { passive: true });
   });
   // Также при возврате в окно (visibilitychange) — резюмируем
   document.addEventListener('visibilitychange', () => {

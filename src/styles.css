@@ -10,9 +10,23 @@ html, body, #root {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
-  touch-action: none;
+  /* manipulation — отключает double-tap zoom и убирает 300мс задержку
+     на iOS, но клики и тапы по кнопкам работают мгновенно.
+     Раньше было `none` — это полностью блокировало touch events на iOS. */
+  touch-action: manipulation;
   overscroll-behavior: none;
   transition: background 0.4s ease;
+}
+
+/* Канвас игры — здесь свайпы должны управлять монетой, а не скроллить
+   страницу. Только на canvas — `none`, не на родительских элементах. */
+.canvas-wrap canvas { touch-action: none; }
+
+/* Все интерактивные кнопки — явно ставим manipulation для мгновенной
+   реакции, ставим cursor: pointer для семантики. */
+button, a, [role="button"] {
+  touch-action: manipulation;
+  cursor: pointer;
 }
 
 #root {
