@@ -448,6 +448,23 @@ export class GameEngine {
             Sound.combo(this.comboCount);
           }
 
+          // Подсказка про Shake Damage — показываем ОДИН раз когда игрок
+          // достигает комбо ×5 (он близко, но порог теперь ×10). Объясняет
+          // зачем молния и куда стремиться.
+          if (this.comboCount === 5) {
+            try {
+              if (localStorage.getItem('nackl_shake_hint_seen') !== '1') {
+                localStorage.setItem('nackl_shake_hint_seen', '1');
+                this.comboPopups.push({
+                  x: W / 2, y: H / 2 - 40,
+                  text: '⚡ ДЕЛАЙ КОМБО ×10 → ЗАРЯД SHAKE DAMAGE',
+                  life: 3.0,
+                  color: '#ffd040',
+                });
+              }
+            } catch { /* localStorage может быть недоступен */ }
+          }
+
           // === ЗАРЯД SHAKE DAMAGE === шкала растёт из комбо ×3 и выше.
           // При 100% → +1 готовый заряд, шкала ноль.
           // Лимит партии: SHAKE_DAMAGE_MAX_USES готовых зарядов суммарно

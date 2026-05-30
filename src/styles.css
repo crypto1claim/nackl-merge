@@ -4997,3 +4997,94 @@ button:active:not(.toggle):not(.lang-btn):not(.modal-close)::after {
 .menu-cta-deeplink { text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 8px; }
 .menu-cta-secondary { background: rgba(255,255,255,0.1) !important; border: 1.5px solid rgba(255,255,255,0.2) !important; font-size: 14px !important; }
 .menu-error { font-size: 12px; color: #ff6b6b; text-align: center; margin: 0; }
+
+/* === Ежедневный бонус — модалка === */
+.daily-bonus-panel {
+  padding: 28px 24px 24px;
+  text-align: center;
+  max-width: 360px;
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--panel-bg) 96%, #ffd84d 4%) 0%,
+    var(--panel-bg) 100%);
+}
+.daily-bonus-header { margin-bottom: 20px; }
+.daily-bonus-emoji { font-size: 48px; line-height: 1; margin-bottom: 8px; }
+.daily-bonus-title {
+  font-family: 'Fredoka', sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+.daily-bonus-streak {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.daily-bonus-streak b {
+  color: #ffd84d;
+}
+.daily-bonus-amount {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 4px;
+  margin: 20px 0;
+  padding: 16px 12px;
+  background: linear-gradient(180deg,
+    rgba(255, 216, 77, 0.12) 0%,
+    rgba(255, 216, 77, 0.04) 100%);
+  border: 1px solid rgba(255, 216, 77, 0.25);
+  border-radius: 16px;
+  box-shadow: 0 0 24px rgba(255, 216, 77, 0.15) inset;
+}
+.daily-bonus-plus,
+.daily-bonus-value {
+  font-family: 'Fredoka', sans-serif;
+  font-size: 38px;
+  font-weight: 700;
+  color: #ffd84d;
+  text-shadow: 0 0 16px rgba(255, 216, 77, 0.5);
+  font-variant-numeric: tabular-nums;
+}
+.daily-bonus-currency {
+  font-size: 14px;
+  font-weight: 700;
+  color: #ffd84d;
+  opacity: 0.7;
+  margin-left: 4px;
+}
+.daily-bonus-streak-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  margin: 16px 0 12px;
+}
+.daily-streak-dot {
+  flex: 1;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 800;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-secondary);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+.daily-streak-dot.reached {
+  background: linear-gradient(180deg, #ffd84d 0%, #f0a020 100%);
+  color: #2a1a00;
+  border-color: #ffd84d;
+  box-shadow: 0 0 12px rgba(255, 216, 77, 0.4);
+}
+.daily-streak-dot.current {
+  transform: scale(1.15);
+  box-shadow: 0 0 20px rgba(255, 216, 77, 0.7);
+}
+.daily-bonus-hint {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin: 4px 0 18px;
+  opacity: 0.75;
+}

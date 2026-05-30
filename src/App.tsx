@@ -15,6 +15,8 @@ import { Sound } from './sound';
 import { FRUITS } from './fruits';
 import { earnMRG, getBalance, getBest, subscribeBalance, formatMRG } from './currency';
 import { subscribeCoinSet } from './coin_sets';
+import { claimDailyBonus } from './dailyBonus';
+import DailyBonusModal from './DailyBonusModal';
 
 export default function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -35,6 +37,17 @@ export default function App() {
   const [showTutorial, setShowTutorial] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(() => !hasSeenOnboarding());
   const [paused, setPaused] = useState(false);
+  // Ежедневный бонус: показываем модалку при первом заходе за день.
+  // Не блокируем онбординг — новый пользователь сначала пройдёт его.
+  const [dailyBonus, setDailyBonus] = useState<{amount: number; streak: number} | null>(null);
+
+  useEffect(() => {
+    if (showOnboarding) return; // ждём окончания онбординга
+    const result = claimDailyBonus();
+    if (result.isNew && result.amount > 0) {
+      setDailyBonus({ amount: result.amount, streak: result.streak });
+    }
+  }, [showOnboarding]);
   const [inGame, setInGame] = useState(false);
   const [nextLevel, setNextLevel] = useState<number>(0);
   const [comboBanner, setComboBanner] = useState<{ count: number; key: number } | null>(null);
@@ -365,6 +378,14 @@ export default function App() {
       )}
 
       {showTutorial && <Tutorial onDone={() => setShowTutorial(false)} />}
+
+      {dailyBonus && (
+        <DailyBonusModal
+          amount={dailyBonus.amount}
+          streak={dailyBonus.streak}
+          onClose={() => setDailyBonus(null)}
+        />
+      )}
 
       {showSettings && (
         <SettingsModal
