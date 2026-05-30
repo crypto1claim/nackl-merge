@@ -9,6 +9,7 @@ import { t } from './i18n';
 import { Sound } from './sound';
 import { hapticSelection } from './telegram';
 import DonateModal from './DonateModal';
+import { FARCASTER_URL } from './config';
 
 interface Props {
   onBack: () => void;
@@ -107,6 +108,15 @@ export default function AboutScreen({ onBack }: Props) {
           <div className="about-card-title">{t('about.support_title')}</div>
           <div className="about-card-text">{t('about.support_text')}</div>
           <div className="support-buttons">
+            <a
+              className="support-btn support-btn-farcaster"
+              href={FARCASTER_URL}
+              target="_blank" rel="noopener noreferrer"
+              onClick={() => Sound.click()}
+            >
+              <img src="farcaster.png" alt="Farcaster" className="support-btn-icon-img"/>
+              <span>{t('about.support_farcaster')}</span>
+            </a>
             <button
               className="support-btn support-btn-donate"
               onClick={() => { Sound.click(); setShowDonate(true); }}
