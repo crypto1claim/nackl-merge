@@ -12,12 +12,13 @@ interface Props {
   onSettings: () => void;
   onShop: () => void;
   onAbout: () => void;
+  onAchievements: () => void;
   onPlay: () => void;
   walletConnected: boolean;
   balance: number;
 }
 
-export default function MenuScreen({ onConnected, onSettings, onShop, onAbout, onPlay, walletConnected, balance }: Props) {
+export default function MenuScreen({ onConnected, onSettings, onShop, onAbout, onAchievements, onPlay, walletConnected, balance }: Props) {
   const [connecting, setConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [walletName, setWalletName] = useState('');
@@ -139,11 +140,15 @@ export default function MenuScreen({ onConnected, onSettings, onShop, onAbout, o
           </div>
         </div>
 
-        {/* Тайлы: Магазин · Об игре · Настройки */}
-        <div className="menu-tiles menu-tiles-3">
+        {/* Тайлы: Магазин · Достижения · Об игре · Настройки */}
+        <div className="menu-tiles menu-tiles-4">
           <button className="menu-tile" onClick={handleTile(onShop)}>
             <ShopIcon />
             <div className="menu-tile-title">{t('menu.shop')}</div>
+          </button>
+          <button className="menu-tile" onClick={handleTile(onAchievements)}>
+            <TrophyIcon />
+            <div className="menu-tile-title">Награды</div>
           </button>
           <button className="menu-tile" onClick={handleTile(onAbout)}>
             <InfoIcon />
@@ -257,6 +262,15 @@ function InfoIcon() {
       <circle cx="12" cy="12" r="10"/>
       <line x1="12" y1="16" x2="12" y2="12"/>
       <line x1="12" y1="8" x2="12.01" y2="8"/>
+    </svg>
+  );
+}
+
+function TrophyIcon() {
+  return (
+    <svg className="tile-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4z"/>
+      <path d="M5 4H3v3a3 3 0 0 0 3 3M19 4h2v3a3 3 0 0 1-3 3"/>
     </svg>
   );
 }

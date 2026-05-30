@@ -12,6 +12,7 @@ import { getTheme } from './themes';
 import { Settings } from './settings';
 import { Sound } from './sound';
 import { ParticleSystem } from './particles';
+import * as Achievements from './achievements';
 
 const W = 360;
 const H = 600;
@@ -336,6 +337,7 @@ export class GameEngine {
     this.bombUsedThisGame += 1;
     this.comboCount = 0;
     this.emitBombState();
+    Achievements.onShakeUsed(this.bombUsedThisGame);
   }
 
   private initPhysics() {
@@ -447,6 +449,10 @@ export class GameEngine {
             this.cb.onCombo?.(this.comboCount);
             Sound.combo(this.comboCount);
           }
+
+          // Достижения
+          Achievements.onMerge(nextLevel);
+          Achievements.onCombo(this.comboCount);
 
           // Подсказка про Shake Damage — показываем ОДИН раз когда игрок
           // достигает комбо ×5 (он близко, но порог теперь ×10). Объясняет

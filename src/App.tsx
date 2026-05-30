@@ -17,6 +17,9 @@ import { earnMRG, getBalance, getBest, subscribeBalance, formatMRG } from './cur
 import { subscribeCoinSet } from './coin_sets';
 import { claimDailyBonus } from './dailyBonus';
 import DailyBonusModal from './DailyBonusModal';
+import AchievementToast from './AchievementToast';
+import AchievementsScreen from './AchievementsScreen';
+import * as Achievements from './achievements';
 
 export default function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -34,6 +37,7 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [showShop, setShowShop] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
+  const [showAchievements, setShowAchievements] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(() => !hasSeenOnboarding());
   const [paused, setPaused] = useState(false);
@@ -46,8 +50,12 @@ export default function App() {
     const result = claimDailyBonus();
     if (result.isNew && result.amount > 0) {
       setDailyBonus({ amount: result.amount, streak: result.streak });
+      Achievements.onDailyStreak(result.streak);
     }
   }, [showOnboarding]);
+
+  // Проверка баланса для достижения «100k MRG»
+  useEffect(() => { Achievements.onBalanceChange(balance); }, [balance]);
   const [inGame, setInGame] = useState(false);
   const [nextLevel, setNextLevel] = useState<number>(0);
   const [comboBanner, setComboBanner] = useState<{ count: number; key: number } | null>(null);
@@ -253,6 +261,8 @@ export default function App() {
           <AboutScreen onBack={() => setShowAbout(false)} />
         ) : showShop ? (
           <ShopScreen onBack={() => setShowShop(false)} />
+        ) : showAchievements ? (
+          <AchievementsScreen onBack={() => setShowAchievements(false)} />
         ) : (
           <MenuScreen
             onConnected={(state) => {
@@ -264,11 +274,13 @@ export default function App() {
             onSettings={() => setShowSettings(true)}
             onShop={() => setShowShop(true)}
             onAbout={() => setShowAbout(true)}
+            onAchievements={() => setShowAchievements(true)}
             balance={balance}
             walletConnected={wallet.connected}
             onPlay={handlePlayClick}
           />
         )}
+        <AchievementToast />
         {showSettings && (
           <SettingsModal
             onClose={() => setShowSettings(false)}
