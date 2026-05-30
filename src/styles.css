@@ -213,14 +213,19 @@ canvas {
 /* Когда видна форма ввода имени кошелька — позволяем прокрутку для клавиатуры */
 .menu-screen:has(.menu-wallet-input) { overflow-y: auto; -webkit-overflow-scrolling: touch; align-items: safe center; }
 /* blur(80px) на iOS жрёт GPU. blur(40px) выглядит почти так же, но не лагает.
-   will-change: transform даёт GPU-acceleration анимации позиции. */
-.menu-glow { position: absolute; border-radius: 50%; filter: blur(40px); opacity: 0.45; z-index: 0; pointer-events: none; will-change: transform; }
+   Без will-change — на iOS он вызывал «пропадание» декора при scroll/composite. */
+.menu-glow { position: absolute; border-radius: 50%; filter: blur(40px); opacity: 0.45; z-index: 0; pointer-events: none; }
 .menu-glow-1 { width: 280px; height: 280px; background: var(--accent); top: -70px; left: -70px; animation: float-1 8s ease-in-out infinite; }
 .menu-glow-2 { width: 240px; height: 240px; background: var(--accent-secondary); bottom: -50px; right: -50px; animation: float-2 10s ease-in-out infinite; }
 @keyframes float-1 { 0%,100%{transform:translate(0,0);} 50%{transform:translate(40px,60px);} }
 @keyframes float-2 { 0%,100%{transform:translate(0,0);} 50%{transform:translate(-50px,-40px);} }
 
-.menu-content { position: relative; z-index: 1; width: 100%; max-width: 380px; text-align: center; }
+/* Контент меню — поверх декора и glow. z-index: 2, чтобы гарантированно
+   быть над .theme-decor (z-index: 0) и .menu-glow (z-index: 0). */
+.menu-content { position: relative; z-index: 2; width: 100%; max-width: 380px; text-align: center; }
+/* Дополнительно: все интерактивные тайлы получают свой stacking context
+   для надёжности на iOS Safari (раньше иногда «съедали» тапы). */
+.menu-tile, .menu-cta { position: relative; z-index: 3; }
 .menu-logo { margin-bottom: 32px; }
 .menu-logo-coin {
   width: 130px; height: 130px;
@@ -1213,7 +1218,7 @@ canvas {
    ============================================================ */
 
 /* Третья сфера для более богатой атмосферы.
-   blur 100→50, без анимации scale на мобиле — экономим GPU. */
+   blur 100→50, без will-change — он вызывал глюки на iOS. */
 .menu-glow-3 {
   width: 180px; height: 180px;
   background: var(--accent-secondary);
@@ -1226,7 +1231,6 @@ canvas {
   border-radius: 50%;
   z-index: 0;
   pointer-events: none;
-  will-change: transform;
 }
 @keyframes float-3 {
   0%, 100% { transform: translate(-50%, -50%) scale(1); }

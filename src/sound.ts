@@ -517,42 +517,44 @@ class HDSoundEngine {
     });
   }
 
-  /** Click — короткий приятный тап на кнопке UI. Глухой деревянный, тихий. */
+  /** Click — глухой деревянный «тук» по кнопке.
+   *  Низкая частота, сильно срезанные верха, очень короткий.
+   *  Никаких писков и звонкости. */
   click() {
     if (!Settings.sound) return;
-    this.noiseAttack({ duration: 0.025, volume: 0.07, lowpass: 1500 });
+    this.noiseAttack({ duration: 0.018, volume: 0.06, lowpass: 500 });
     this.playTone({
-      freq: 720,
-      harmonics: [1, 2],
-      amplitudes: [1.0, 0.2],
-      duration: 0.035,
-      attack: 0.001,
-      decay: 0.02,
-      sustain: 0.05,
-      release: 0.06,
-      volume: 0.10,
-      reverbSend: 0.05,
-      lowpass: 2200,
-      waveform: 'triangle',
-    });
-  }
-
-  /** Select — мягкий тап для выбора варианта (чуть выше click) */
-  select() {
-    if (!Settings.sound) return;
-    this.noiseAttack({ duration: 0.02, volume: 0.05, lowpass: 1800 });
-    this.playTone({
-      freq: 880,
-      harmonics: [1, 2],
+      freq: 280,
+      harmonics: [1, 1.4],
       amplitudes: [1.0, 0.15],
-      duration: 0.03,
+      duration: 0.025,
       attack: 0.001,
       decay: 0.015,
       sustain: 0.05,
       release: 0.05,
-      volume: 0.08,
-      reverbSend: 0.05,
-      lowpass: 2400,
+      volume: 0.09,
+      reverbSend: 0.04,
+      lowpass: 900,    // СИЛЬНО зажимаем верха — никаких «дзинь»
+      waveform: 'triangle',
+    });
+  }
+
+  /** Select — чуть выше click для выбора варианта, но тоже глухой. */
+  select() {
+    if (!Settings.sound) return;
+    this.noiseAttack({ duration: 0.015, volume: 0.05, lowpass: 600 });
+    this.playTone({
+      freq: 360,
+      harmonics: [1, 1.4],
+      amplitudes: [1.0, 0.12],
+      duration: 0.022,
+      attack: 0.001,
+      decay: 0.012,
+      sustain: 0.05,
+      release: 0.04,
+      volume: 0.07,
+      reverbSend: 0.04,
+      lowpass: 1100,
       waveform: 'triangle',
     });
   }
