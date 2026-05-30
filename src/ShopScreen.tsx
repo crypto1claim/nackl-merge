@@ -77,7 +77,7 @@ function ThemesTab({ onChange }: { onChange: () => void }) {
   const current = getTheme();
   return (
     <div className="shop-list">
-      {Object.values(THEMES).map((theme) => {
+      {Object.values(THEMES).filter((theme) => !theme.hidden).map((theme) => {
         const itemId: ItemId = `theme:${theme.id}`;
         const owned = isOwned(itemId);
         const price = getPrice(itemId);

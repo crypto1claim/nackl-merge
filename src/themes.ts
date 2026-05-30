@@ -63,6 +63,9 @@ export interface Theme {
   canvasGlow: string;
   canvasWall: string;
   swatch: [string, string, string];
+  /** Скрыта из магазина (сезонная тема). Откроем перед праздником —
+   *  убрать флаг, чтобы вернуть в продажу. */
+  hidden?: boolean;
 }
 
 export const THEMES: Record<ThemeId, Theme> = {
@@ -169,6 +172,7 @@ export const THEMES: Record<ThemeId, Theme> = {
   // ----- ХЭЛЛОУИН — оранжево-фиолетовый, тыквы и летучие мыши -----
   halloween: {
     id: 'halloween', nameKey: 'theme.halloween', decor: 'halloween',
+    hidden: true,  // сезонная — откроем перед Хэллоуином
     bg: 'radial-gradient(ellipse at 25% 0%, rgba(255, 130, 40, 0.30) 0%, transparent 55%), radial-gradient(ellipse at 75% 100%, rgba(140, 60, 220, 0.28) 0%, transparent 55%), linear-gradient(180deg, #0a0312 0%, #1a0a25 100%)',
     panelBg: 'rgba(20, 8, 35, 0.96)',
     panelBorder: 'rgba(255, 130, 40, 0.45)',
@@ -189,6 +193,7 @@ export const THEMES: Record<ThemeId, Theme> = {
   // ----- РОЖДЕСТВО — красно-зелёно-золотой, снежинки -----
   christmas: {
     id: 'christmas', nameKey: 'theme.christmas', decor: 'christmas',
+    hidden: true,  // сезонная — откроем перед Рождеством
     bg: 'radial-gradient(ellipse at 25% 0%, rgba(220, 50, 50, 0.25) 0%, transparent 55%), radial-gradient(ellipse at 75% 100%, rgba(50, 160, 80, 0.22) 0%, transparent 55%), linear-gradient(180deg, #0d1410 0%, #15201a 100%)',
     panelBg: 'rgba(20, 30, 24, 0.96)',
     panelBorder: 'rgba(255, 215, 0, 0.4)',
