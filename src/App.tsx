@@ -286,19 +286,20 @@ export default function App() {
           </div>
         </div>
         <div className="hud-right">
-          <div className="hud-score-block">
-            <div className="hud-label">{t('hud.earned')}</div>
-            <div className="score">
-              {formatMRG(sessionEarned)}
-              <span className="score-currency">MRG</span>
-            </div>
+          {/* Заработано за партию — компактно с иконкой молнии */}
+          <div className="hud-stat hud-stat-earned" title={t('hud.earned')}>
+            <svg className="hud-stat-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M13 2 L4 14 h7 l-2 8 L20 10 h-7 l2-8z"/>
+            </svg>
+            <span className="hud-stat-value">+{formatMRG(sessionEarned)}</span>
           </div>
-          <div className="hud-best-block">
-            <div className="hud-label">{t('hud.balance')}</div>
-            <div className="hud-best">
-              {formatMRG(balance)}
-              <span className="score-currency">MRG</span>
-            </div>
+          {/* Общий баланс — с иконкой монеты */}
+          <div className="hud-stat hud-stat-balance" title={t('hud.balance')}>
+            <svg className="hud-stat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+              <circle cx="12" cy="12" r="9"/>
+              <path d="M9 9h6M9 13h4M9 17h2" strokeLinecap="round"/>
+            </svg>
+            <span className="hud-stat-value">{formatMRG(balance)}</span>
           </div>
           {/* Shake Damage — круглая кнопка с круговым прогрессом и 3 точками */}
           <ShakeDamageButton

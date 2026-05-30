@@ -453,17 +453,17 @@ export class GameEngine {
           //   x5  = 40
           //   x6  = 60
           //   x7+ = 80 (cap за один комбо)
-          // На полный заряд (100%) нужно ~7 ×3, или ~4 ×4, или ~2-3 ×5+.
-          // Реалистично за партию: 1-3 заряда. Хорошо набирается во второй половине партии.
+          // Порог ×10 — заряд получают только за крупные каскады.
+          // Раньше копился слишком легко (с ×3), что обесценивало способность.
+          // Теперь нужно реально постараться — 1-2 заряда за хорошую партию.
           const totalChargesEarned = this.bombReadyCharges + this.bombUsedThisGame;
           const canEarnMore = totalChargesEarned < SHAKE_DAMAGE_MAX_USES;
-          if (this.comboCount >= 3 && canEarnMore) {
+          if (this.comboCount >= 10 && canEarnMore) {
             let chargeGain: number;
-            if (this.comboCount === 3) chargeGain = 15;
-            else if (this.comboCount === 4) chargeGain = 25;
-            else if (this.comboCount === 5) chargeGain = 40;
-            else if (this.comboCount === 6) chargeGain = 60;
-            else chargeGain = 80;
+            if (this.comboCount === 10) chargeGain = 35;
+            else if (this.comboCount === 11) chargeGain = 50;
+            else if (this.comboCount === 12) chargeGain = 70;
+            else chargeGain = 100; // ×13+ — сразу полный заряд
 
             this.bombCharge = Math.min(100, this.bombCharge + chargeGain);
             if (this.bombCharge >= 100) {
