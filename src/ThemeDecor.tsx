@@ -357,44 +357,36 @@ function DecorBtcSymbols() {
 
 // ---------- 🌊 OCEAN — глубокий океан с биолюминесценцией ----------
 function DecorOceanJelly() {
-  // Основные медузы — крупные, с пульсацией куполов и волнистыми щупальцами
+  // ОПТИМИЗАЦИЯ: тема была безумно тяжёлой (60+ анимированных элементов
+  // + 2 blur(50px) glow + drop-shadow на каждой медузе). На iPhone 14
+  // и старее это убивало GPU — меню еле прорисовывалось, тапы тормозили.
+  // Сейчас: 2 крупные медузы + 1 мелкая + 12 планктона. Без depth-glow.
   const jellies = [
-    { x: 15, y: 25, size: 130, delay: 0,   duration: 8,  hue: 'cyan' },
-    { x: 80, y: 35, size: 100, delay: 2.5, duration: 10, hue: 'mint' },
-    { x: 25, y: 70, size: 150, delay: 5,   duration: 9,  hue: 'cyan' },
-    { x: 78, y: 78, size: 110, delay: 1.5, duration: 11, hue: 'mint' },
+    { x: 18, y: 28, size: 120, delay: 0,   duration: 10, hue: 'cyan' },
+    { x: 76, y: 72, size: 110, delay: 3,   duration: 11, hue: 'mint' },
   ];
-  // Маленькие медузы — задний план
   const smallJellies = [
-    { x: 5,  y: 50, size: 50, delay: 3,   duration: 14, hue: 'cyan' },
-    { x: 92, y: 55, size: 45, delay: 4,   duration: 13, hue: 'mint' },
-    { x: 45, y: 15, size: 60, delay: 6.5, duration: 12, hue: 'cyan' },
+    { x: 8, y: 60, size: 50, delay: 2, duration: 14, hue: 'cyan' },
   ];
-  // Светящиеся частицы — биолюминесцентный планктон
-  const plankton = Array.from({ length: 40 }, (_, i) => ({
-    x: (i * 13.37) % 100,
+  const plankton = Array.from({ length: 12 }, (_, i) => ({
+    x: (i * 41.7) % 100,
     y: (i * 23.71) % 100,
-    delay: -(i * 0.3),
-    duration: 6 + (i % 5),
-    size: 2 + (i % 3),
+    delay: -(i * 0.6),
+    duration: 8 + (i % 3),
+    size: 2 + (i % 2),
   }));
-  // Пузыри со дна
-  const bubbles = Array.from({ length: 12 }, (_, i) => ({
-    x: 5 + (i * 8.3) % 90,
-    size: 6 + (i % 4) * 4,
-    delay: -(i * 0.8),
-    duration: 9 + (i % 4) * 2,
+  const bubbles = Array.from({ length: 6 }, (_, i) => ({
+    x: 5 + (i * 16.7) % 90,
+    size: 6 + (i % 3) * 3,
+    delay: -(i * 1.4),
+    duration: 11 + (i % 3) * 2,
   }));
   return (
     <div className="theme-decor decor-ocean">
-      {/* Глубинные тёмные пятна — даёт ощущение объёма */}
-      <div className="ocean-depth-glow d1" />
-      <div className="ocean-depth-glow d2" />
-      {/* Световые лучи сверху */}
+      {/* depth-glow убран — был самым дорогим (blur 50px × 2 + animation) */}
+      {/* Один лучик сверху для атмосферы — раньше было 3 */}
       <div className="ocean-ray r1" />
-      <div className="ocean-ray r2" />
-      <div className="ocean-ray r3" />
-      {/* Планктон */}
+      {/* Планктон — сокращён до 12 точек (было 40) */}
       {plankton.map((p, i) => (
         <div key={`p${i}`} className="ocean-plankton" style={{
           left: `${p.x}%`, top: `${p.y}%`,
@@ -402,7 +394,7 @@ function DecorOceanJelly() {
           animationDelay: `${p.delay}s`, animationDuration: `${p.duration}s`,
         }}/>
       ))}
-      {/* Задние мелкие медузы */}
+      {/* Одна задняя мелкая медуза */}
       {smallJellies.map((j, i) => (
         <JellyfishPremium key={`sj${i}`} small hue={j.hue as any} style={{
           left: `${j.x}%`, top: `${j.y}%`,
@@ -410,7 +402,7 @@ function DecorOceanJelly() {
           animationDelay: `${j.delay}s`, animationDuration: `${j.duration}s`,
         }}/>
       ))}
-      {/* Передние крупные медузы */}
+      {/* 2 крупные медузы (было 4) */}
       {jellies.map((j, i) => (
         <JellyfishPremium key={`j${i}`} hue={j.hue as any} style={{
           left: `${j.x}%`, top: `${j.y}%`,
