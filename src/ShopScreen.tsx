@@ -15,12 +15,13 @@ import {
 } from './coin_sets';
 import { isOwned, buyItem, getPrice, type ItemId } from './shop';
 import { getBalance, formatMRG } from './currency';
+import { POWERUPS, buy as buyPowerup, getCount as getPowerupCount } from './powerups';
 
 interface Props {
   onBack: () => void;
 }
 
-type Tab = 'themes' | 'coins';
+type Tab = 'themes' | 'coins' | 'boosters';
 
 export default function ShopScreen({ onBack }: Props) {
   const [tab, setTab] = useState<Tab>('themes');
@@ -54,10 +55,16 @@ export default function ShopScreen({ onBack }: Props) {
           className={`shop-tab ${tab === 'coins' ? 'active' : ''}`}
           onClick={() => { Sound.select(); setTab('coins'); }}
         >{t('shop.tab_coins')}</button>
+        <button
+          className={`shop-tab ${tab === 'boosters' ? 'active' : ''}`}
+          onClick={() => { Sound.select(); setTab('boosters'); }}
+        >Бустеры</button>
       </div>
 
       <div className="shop-content">
-        {tab === 'themes' ? <ThemesTab onChange={rerender} /> : <CoinsTab onChange={rerender} />}
+        {tab === 'themes'   ? <ThemesTab   onChange={rerender} /> :
+         tab === 'coins'    ? <CoinsTab    onChange={rerender} /> :
+                              <BoostersTab onChange={rerender} />}
       </div>
     </div>
   );
@@ -280,6 +287,55 @@ function ShopRow({ owned, active, price, title, preview, onBuy, onApply }: RowPr
           </button>
         )}
       </div>
+    </div>
+  );
+}
+
+// ============================================================
+// Вкладка БУСТЕРЫ
+// ============================================================
+function BoostersTab({ onChange }: { onChange: () => void }) {
+  const balance = getBalance();
+  return (
+    <div className="shop-list">
+      <div className="boosters-hint">
+        Бустеры активируются прямо в игре — кнопки появляются в HUD.
+      </div>
+      {POWERUPS.map((pu) => {
+        const owned = getPowerupCount(pu.id);
+        const canAfford = balance >= pu.price;
+        const handleBuy = () => {
+          Sound.select();
+          if (buyPowerup(pu.id)) {
+            hapticNotification('success');
+            onChange();
+          } else {
+            hapticNotification('error');
+          }
+        };
+        return (
+          <div key={pu.id} className="booster-card">
+            <div className="booster-icon">{pu.icon}</div>
+            <div className="booster-body">
+              <div className="booster-title">
+                {pu.title}
+                {owned > 0 && <span className="booster-count">×{owned}</span>}
+              </div>
+              <div className="booster-desc">{pu.description}</div>
+              <div className="booster-price-row">
+                <span className="booster-price">{formatMRG(pu.price)} MRG</span>
+                <button
+                  className={`booster-buy ${!canAfford ? 'disabled' : ''}`}
+                  onClick={canAfford ? handleBuy : undefined}
+                  disabled={!canAfford}
+                >
+                  {canAfford ? 'Купить' : `Не хватает ${formatMRG(pu.price - balance)}`}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }

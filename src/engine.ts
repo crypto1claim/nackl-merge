@@ -13,6 +13,7 @@ import { Settings } from './settings';
 import { Sound } from './sound';
 import { ParticleSystem } from './particles';
 import * as Achievements from './achievements';
+import * as PowerUps from './powerups';
 
 const W = 360;
 const H = 600;
@@ -215,6 +216,47 @@ export class GameEngine {
 
   /** Сколько уже использовано в этой партии */
   getUsedCharges() { return this.bombUsedThisGame; }
+
+  // === Power-ups: применить бустер из инвентаря ===
+  /** Дать +1 готовый заряд Shake Damage (бустер extraCharge). */
+  applyExtraCharge() {
+    if (!PowerUps.consume('extraCharge')) return false;
+    this.bombReadyCharges = Math.min(SHAKE_DAMAGE_MAX_USES - this.bombUsedThisGame, this.bombReadyCharges + 1);
+    this.emitBombState();
+    haptic('heavy');
+    return true;
+  }
+
+  /** Бустер boostNext: следующая монета будет на 1 уровень выше. */
+  applyBoostNext() {
+    if (!PowerUps.consume('boostNext')) return false;
+    this.nextLevel = Math.min(FRUITS.length - 2, this.nextLevel + 1);
+    if (this.aiming) {
+      this.aiming.level = Math.min(FRUITS.length - 2, this.aiming.level + 1);
+      this.aiming.def = FRUITS[this.aiming.level];
+    }
+    this.cb.onNextLevelChange?.(this.nextLevel);
+    this.needsRender = true;
+    haptic('medium');
+    return true;
+  }
+
+  /** Бустер removeBottom: удалить случайную монету из нижней половины банки. */
+  applyRemoveBottom() {
+    const candidates = Matter.Composite.allBodies(this.world).filter((b) => {
+      const data = (b as any).fruitData as FruitData | undefined;
+      return data && !data.merged && b.position.y > H / 2;
+    });
+    if (candidates.length === 0) return false; // нечего удалять — не списываем
+    if (!PowerUps.consume('removeBottom')) return false;
+    const target = candidates[Math.floor(Math.random() * candidates.length)];
+    this.particles.burst(target.position.x, target.position.y, '#ff6b6b', 15, 4);
+    Matter.Composite.remove(this.world, target);
+    Sound.click();
+    haptic('medium');
+    this.needsRender = true;
+    return true;
+  }
 
   /** Уведомление UI об актуальном состоянии Shake Damage */
   private emitBombState() {

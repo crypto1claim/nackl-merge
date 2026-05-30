@@ -20,6 +20,7 @@ import DailyBonusModal from './DailyBonusModal';
 import AchievementToast from './AchievementToast';
 import AchievementsScreen from './AchievementsScreen';
 import * as Achievements from './achievements';
+import { POWERUPS, subscribeInventory, getInventory, type PowerUpId } from './powerups';
 
 export default function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -67,6 +68,9 @@ export default function App() {
   }>({ charge: 0, ready: 0, used: 0, maxUses: 3 });
   const [shakeFlash, setShakeFlash] = useState(0);  // ключ для триггера вспышки
   const [, force] = useState(0);
+  // Инвентарь бустеров — подписан, чтобы кнопки в HUD обновлялись после покупки/использования
+  const [powerupInv, setPowerupInv] = useState(() => getInventory());
+  useEffect(() => subscribeInventory(setPowerupInv), []);
 
   useEffect(() => {
     // tg.ready() / expand() уже вызваны в main.tsx до рендера React
@@ -334,6 +338,32 @@ export default function App() {
           </button>
         </div>
       </div>
+
+      {/* Бустеры — отдельная полоска под HUD, видна только если что-то куплено */}
+      {(Object.values(powerupInv).some((n) => n > 0)) && (
+        <div className="powerup-bar">
+          {POWERUPS.filter((pu) => powerupInv[pu.id] > 0).map((pu) => (
+            <button
+              key={pu.id}
+              className="powerup-btn"
+              onClick={() => {
+                Sound.click();
+                const e = engineRef.current;
+                if (!e) return;
+                let ok = false;
+                if (pu.id === 'extraCharge')   ok = e.applyExtraCharge();
+                if (pu.id === 'boostNext')     ok = e.applyBoostNext();
+                if (pu.id === 'removeBottom')  ok = e.applyRemoveBottom();
+                if (!ok) hapticSelection();
+              }}
+              title={pu.title}
+            >
+              <span className="powerup-btn-icon">{pu.icon}</span>
+              <span className="powerup-btn-count">{powerupInv[pu.id as PowerUpId]}</span>
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="canvas-wrap">
         <canvas ref={canvasRef} />
