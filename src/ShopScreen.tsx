@@ -93,7 +93,7 @@ function ThemesTab({ onChange }: { onChange: () => void }) {
             preview={<ThemePreview themeId={theme.id} />}
             onBuy={() => {
               if (buyItem(itemId)) {
-                Sound.fanfare();
+                Sound.purchase();
                 hapticNotification('success');
                 onChange();
               } else {
@@ -174,7 +174,7 @@ function CoinSlot({
     if (!owned) {
       // покупаем
       if (buyItem(itemId)) {
-        Sound.fanfare();
+        Sound.purchase();
         hapticNotification('success');
         // После покупки — сразу активируем
         setVariant(level, variant);
@@ -305,11 +305,12 @@ function BoostersTab({ onChange }: { onChange: () => void }) {
         const owned = getPowerupCount(pu.id);
         const canAfford = balance >= pu.price;
         const handleBuy = () => {
-          Sound.select();
           if (buyPowerup(pu.id)) {
+            Sound.purchase();
             hapticNotification('success');
             onChange();
           } else {
+            Sound.click();
             hapticNotification('error');
           }
         };

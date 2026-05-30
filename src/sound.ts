@@ -517,9 +517,45 @@ class HDSoundEngine {
     });
   }
 
-  /** Click / select — тишина */
-  click() { /* silent */ }
-  select() { /* silent */ }
+  /** Click — короткий приятный тап на кнопке UI. Глухой деревянный, тихий. */
+  click() {
+    if (!Settings.sound) return;
+    this.noiseAttack({ duration: 0.025, volume: 0.07, lowpass: 1500 });
+    this.playTone({
+      freq: 720,
+      harmonics: [1, 2],
+      amplitudes: [1.0, 0.2],
+      duration: 0.035,
+      attack: 0.001,
+      decay: 0.02,
+      sustain: 0.05,
+      release: 0.06,
+      volume: 0.10,
+      reverbSend: 0.05,
+      lowpass: 2200,
+      waveform: 'triangle',
+    });
+  }
+
+  /** Select — мягкий тап для выбора варианта (чуть выше click) */
+  select() {
+    if (!Settings.sound) return;
+    this.noiseAttack({ duration: 0.02, volume: 0.05, lowpass: 1800 });
+    this.playTone({
+      freq: 880,
+      harmonics: [1, 2],
+      amplitudes: [1.0, 0.15],
+      duration: 0.03,
+      attack: 0.001,
+      decay: 0.015,
+      sustain: 0.05,
+      release: 0.05,
+      volume: 0.08,
+      reverbSend: 0.05,
+      lowpass: 2400,
+      waveform: 'triangle',
+    });
+  }
 
   /** Unlock — служебный, только разблокирует AudioContext */
   unlock() {
@@ -529,13 +565,75 @@ class HDSoundEngine {
     }
   }
 
-  /** Purchase — пузырьки покупки */
+  /** Purchase — чистый звук покупки: «деньги звякнули + успех».
+   *  Без писка — два тёплых тона с реверберацией. */
   purchase() {
     if (!Settings.sound) return;
-    this.bubblePop(440, -0.2, 0.28);
-    setTimeout(() => this.bubblePop(660, 0.2, 0.28), 100);
-    setTimeout(() => this.softBell(880, 0, 0.22), 220);
+    // 1. Тёплый деревянный «чок» — деньги ушли
+    this.noiseAttack({ duration: 0.04, volume: 0.12, lowpass: 700 });
+    this.playTone({
+      freq: 220,
+      harmonics: [1, 2, 3],
+      amplitudes: [1.0, 0.3, 0.1],
+      duration: 0.08,
+      attack: 0.002,
+      decay: 0.04,
+      sustain: 0.2,
+      release: 0.15,
+      volume: 0.18,
+      reverbSend: 0.18,
+      lowpass: 1800,
+      waveform: 'triangle',
+    });
+    // 2. Через 90мс — мягкий восходящий аккорд (успех)
+    setTimeout(() => {
+      this.playTone({
+        freq: 523.25, // C5
+        harmonics: [1, 1.5, 2],
+        amplitudes: [1.0, 0.3, 0.15],
+        duration: 0.25,
+        attack: 0.008,
+        decay: 0.1,
+        sustain: 0.4,
+        release: 0.45,
+        volume: 0.16,
+        reverbSend: 0.35,
+        lowpass: 3500,
+        waveform: 'sine',
+      });
+      this.playTone({
+        freq: 783.99, // G5
+        harmonics: [1, 2],
+        amplitudes: [0.7, 0.2],
+        duration: 0.25,
+        attack: 0.015,
+        decay: 0.1,
+        sustain: 0.4,
+        release: 0.5,
+        volume: 0.12,
+        reverbSend: 0.4,
+        lowpass: 3800,
+        waveform: 'sine',
+        delay: 0.05,
+      });
+    }, 90);
   }
 }
 
 export const Sound = new HDSoundEngine();
+
+// === Авто-unlock AudioContext на ЛЮБОЙ user-gesture ===
+// На iOS / Safari аудио блокируется до первого юзер-тапа. Без этого
+// после blur'ов (свернуть/развернуть мини-апп) звук просто пропадает.
+// Подвешиваем глобальные слушатели на касания/клики и при срабатывании
+// вызываем Sound.unlock() — это резюмирует контекст и звук возвращается.
+if (typeof window !== 'undefined') {
+  const unlock = () => { Sound.unlock(); };
+  ['pointerdown', 'touchstart', 'click', 'keydown'].forEach((ev) => {
+    window.addEventListener(ev, unlock, { capture: true, passive: true });
+  });
+  // Также при возврате в окно (visibilitychange) — резюмируем
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) Sound.unlock();
+  });
+}

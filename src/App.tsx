@@ -320,34 +320,41 @@ export default function App() {
         </div>
         <div className="hud-right">
           {/* Бустеры — встроены в HUD-right ПЕРЕД Shake Damage.
-              Показываем «осталось / 3» — сколько ещё можно использовать
-              за партию (лимит 3 каждого), а не сколько куплено. */}
-          {POWERUPS.map((pu) => {
-            const e = engineRef.current;
-            const remaining = e ? e.getPowerupRemaining(pu.id) : powerupInv[pu.id];
-            if (remaining <= 0 && powerupInv[pu.id] === 0) return null;
-            const disabled = remaining <= 0;
-            return (
-              <button
-                key={pu.id}
-                className={`powerup-mini powerup-mini-${pu.id} ${disabled ? 'is-spent' : ''}`}
-                disabled={disabled}
-                onClick={() => {
-                  Sound.click();
-                  if (!e) return;
-                  let ok = false;
-                  if (pu.id === 'extraCharge')   ok = e.applyExtraCharge();
-                  if (pu.id === 'boostNext')     ok = e.applyBoostNext();
-                  if (pu.id === 'removeBottom')  ok = e.applyRemoveBottom();
-                  if (!ok) hapticSelection();
-                }}
-                title={pu.title}
-              >
-                <PowerUpIcon id={pu.id} />
-                <span className="powerup-mini-count">{remaining}</span>
-              </button>
-            );
-          })}
+              Показываем кнопку для КАЖДОГО купленного бустера (даже если
+              исчерпан за партию) — иначе HUD «прыгает» при использовании
+              последнего слота. Когда лимит исчерпан, кнопка серая, disabled. */}
+          {(Object.values(powerupInv).some((n) => n > 0)) && (
+            <div className="powerup-group">
+              {POWERUPS.map((pu) => {
+                const e = engineRef.current;
+                const remaining = e ? e.getPowerupRemaining(pu.id) : powerupInv[pu.id];
+                const inInventory = powerupInv[pu.id] > 0;
+                // Не куплен вообще — слот не занимает места
+                if (!inInventory) return null;
+                const disabled = remaining <= 0;
+                return (
+                  <button
+                    key={pu.id}
+                    className={`powerup-mini powerup-mini-${pu.id} ${disabled ? 'is-spent' : ''}`}
+                    disabled={disabled}
+                    onClick={() => {
+                      Sound.click();
+                      if (!e) return;
+                      let ok = false;
+                      if (pu.id === 'extraCharge')   ok = e.applyExtraCharge();
+                      if (pu.id === 'boostNext')     ok = e.applyBoostNext();
+                      if (pu.id === 'removeBottom')  ok = e.applyRemoveBottom();
+                      if (!ok) hapticSelection();
+                    }}
+                    title={pu.title}
+                  >
+                    <PowerUpIcon id={pu.id} />
+                    <span className="powerup-mini-count">{remaining}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
           {/* Shake Damage — круглая кнопка с круговым прогрессом и 3 точками */}
           <ShakeDamageButton
             state={bombState}

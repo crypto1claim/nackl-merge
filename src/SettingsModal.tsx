@@ -32,14 +32,6 @@ export default function SettingsModal({ onClose, onWalletDisconnect }: Props) {
 
   const handleLang = (lang: Lang) => { setLang(lang); haptic(); rerender(); };
   const handleSound = () => { Settings.setSound(!Settings.sound); haptic(); rerender(); };
-  const handleVibration = () => {
-    const next = !Settings.vibration;
-    Settings.setVibration(next);
-    Sound.select();
-    // Если включили — даём тестовый удар чтобы пользователь почувствовал что работает
-    if (next) hapticImpact('medium');
-    rerender();
-  };
 
   if (view === 'confirmDisconnect') {
     return (
@@ -74,11 +66,9 @@ export default function SettingsModal({ onClose, onWalletDisconnect }: Props) {
             <div className="setting-label">{t('settings.sound')}</div>
             <Toggle checked={Settings.sound} onChange={handleSound} />
           </div>
-
-          <div className="setting-row">
-            <div className="setting-label">{t('settings.vibration')}</div>
-            <Toggle checked={Settings.vibration} onChange={handleVibration} />
-          </div>
+          {/* Тогл вибрации убран — на Telegram Mini App в большинстве
+              телефонов вибрация работает нестабильно. Когда исправят —
+              вернём. */}
 
           {/* Debug-блок: показывает текущий баланс и позволяет начислить MRG
               для тестирования покупок. Полезно когда баланс мал. */}
