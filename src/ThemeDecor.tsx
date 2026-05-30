@@ -475,22 +475,23 @@ function JellyfishPremium({ hue, small, style }: { hue: 'cyan' | 'mint'; small?:
 // висящие красные бумажные фонарики, золотой дракон извивается, бамбуковые
 // заросли, плавающие иероглифы, падающие лепестки сакуры.
 function DecorChinaLanterns() {
-  // Бумажные фонарики — несколько штук разного размера
-  const lanterns = Array.from({ length: 9 }, (_, i) => ({
-    x: 3 + (i * 11.4) % 95,
+  // Бумажные фонарики. ОПТИМИЗАЦИЯ (как в теме Океан): 9 → 5. Каждый фонарик
+  // нёс filter: drop-shadow + анимацию качания → тень пересчитывалась каждый
+  // кадр. ×9 это перегружало GPU iPhone 14 (A15). Разброс по x пересчитан,
+  // чтобы 5 штук покрывали всю ширину, а не кучковались слева.
+  const lanterns = Array.from({ length: 5 }, (_, i) => ({
+    x: 4 + i * 22,
     y: 5 + (i % 3) * 8,
     size: 36 + (i % 4) * 10,
     delay: i * 0.5,
     duration: 4 + (i % 3),
     swayDelay: i * 0.3,
   }));
-  // Плавающие иероглифы
+  // Плавающие иероглифы. ОПТИМИЗАЦИЯ: 5 → 3 (каждый с text-shadow + дрейф).
   const chars = [
-    { char: '福', x: 12, y: 28, size: 70, delay: 0,   duration: 14 },
-    { char: '寿', x: 78, y: 35, size: 60, delay: 3.5, duration: 16 },
-    { char: '財', x: 22, y: 62, size: 65, delay: 7,   duration: 13 },
-    { char: '龍', x: 82, y: 70, size: 55, delay: 5,   duration: 17 },
-    { char: '吉', x: 50, y: 48, size: 50, delay: 9,   duration: 15 },
+    { char: '福', x: 12, y: 28, size: 70, delay: 0, duration: 14 },
+    { char: '財', x: 80, y: 40, size: 62, delay: 4, duration: 16 },
+    { char: '龍', x: 46, y: 64, size: 55, delay: 8, duration: 15 },
   ];
   return (
     <div className="theme-decor decor-china">
@@ -651,18 +652,17 @@ function DecorHalloween() {
     { x: 78, y: 76, size: 130, delay: 1.5, duration: 6,  variant: 2 },
     { x: 45, y: 72, size: 90,  delay: 3,   duration: 5.5, variant: 3 },
   ];
-  // Летучие мыши — несколько штук разного размера
+  // Летучие мыши. ОПТИМИЗАЦИЯ (как в Океане): 5 → 3 + убран filter: drop-shadow
+  // (пересчитывался каждый кадр пока мышь летит через экран).
   const bats = [
     { y: 14, size: 60, delay: 0,    duration: 9,  scale: 1 },
-    { y: 28, size: 45, delay: 2.5,  duration: 11, scale: 0.7 },
     { y: 42, size: 70, delay: 5,    duration: 8,  scale: 1.1 },
-    { y: 22, size: 50, delay: 7,    duration: 10, scale: 0.8 },
-    { y: 50, size: 40, delay: 3,    duration: 12, scale: 0.65 },
+    { y: 24, size: 48, delay: 3,    duration: 11, scale: 0.75 },
   ];
-  // Звёзды + летающие искры
-  const stars = Array.from({ length: 16 }, (_, i) => ({
-    x: (i * 11.7) % 96 + 2,
-    y: (i * 7.3) % 50 + 3,
+  // Звёзды. ОПТИМИЗАЦИЯ: 16 → 10.
+  const stars = Array.from({ length: 10 }, (_, i) => ({
+    x: (i * 18.7) % 96 + 2,
+    y: (i * 11.3) % 50 + 3,
     delay: i * 0.35,
     size: 8 + (i % 3) * 3,
   }));
@@ -796,22 +796,24 @@ function BatPremium({ top, size, scale, delay, duration }: {
 function DecorChristmas() {
   // Снежинки нескольких типов — крупные близкие (быстрые, чёткие)
   // и мелкие далёкие (медленные, размытые)
-  const closeFlakes = Array.from({ length: 12 }, (_, i) => ({
-    x: (i * 8.71) % 100,
+  // ОПТИМИЗАЦИЯ (как в теме Океан): количества снижены ради GPU iPhone 14.
+  // close 12→8, far 30→12 (+ убран filter: blur у далёких), stars 35→18.
+  const closeFlakes = Array.from({ length: 8 }, (_, i) => ({
+    x: (i * 13.1) % 100,
     size: 5 + (i % 4) * 2,
     delay: -(i * 0.9),
     duration: 7 + (i % 3) * 2,
     drift: 15 + (i % 5) * 8,
   }));
-  const farFlakes = Array.from({ length: 30 }, (_, i) => ({
-    x: (i * 3.37) % 100,
+  const farFlakes = Array.from({ length: 12 }, (_, i) => ({
+    x: (i * 8.43) % 100,
     size: 2 + (i % 2),
     delay: -(i * 0.5),
     duration: 12 + (i % 4) * 3,
   }));
-  const stars = Array.from({ length: 35 }, (_, i) => ({
-    x: 1 + (i * 6.13) % 98,
-    y: 1 + (i * 2.71) % 30,
+  const stars = Array.from({ length: 18 }, (_, i) => ({
+    x: 1 + (i * 11.9) % 98,
+    y: 1 + (i * 5.3) % 30,
     size: 1 + (i % 4),
     delay: i * 0.18,
   }));

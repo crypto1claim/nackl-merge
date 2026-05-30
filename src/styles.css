@@ -3614,8 +3614,10 @@ button:active:not(.toggle):not(.lang-btn):not(.modal-close)::after {
   pointer-events: none;
 }
 @keyframes cn-moon-pulse {
-  0%, 100% { opacity: 0.85; transform: translateX(-50%) scale(1); }
-  50%      { opacity: 1;    transform: translateX(-50%) scale(1.05); }
+  /* ОПТИМИЗАЦИЯ: убран scale — анимация scale на blur(15px) пересчитывала
+     размытый слой каждый кадр. Пульс только через opacity (дёшево). */
+  0%, 100% { opacity: 0.85; }
+  50%      { opacity: 1; }
 }
 
 /* Силуэт гор и пагод — нижняя часть */
@@ -3650,7 +3652,9 @@ button:active:not(.toggle):not(.lang-btn):not(.modal-close)::after {
 .cn-lantern {
   position: absolute;
   pointer-events: none;
-  filter: drop-shadow(0 4px 12px rgba(255, 60, 40, 0.5));
+  /* ОПТИМИЗАЦИЯ: убран filter: drop-shadow — он пересчитывался каждый кадр
+     анимации качания и был самым дорогим эффектом темы (×9 фонариков).
+     Объём фонарику даёт box-shadow на .cn-lantern-body. */
   animation: cn-lantern-sway var(--cn-sway-dur, 5s) ease-in-out infinite;
   animation-delay: var(--cn-sway-delay, 0s);
   transform-origin: top center;
@@ -3688,6 +3692,7 @@ button:active:not(.toggle):not(.lang-btn):not(.modal-close)::after {
     radial-gradient(ellipse at 35% 35%, #ff5040 0%, #d83020 50%, #8a1818 100%);
   border-radius: 50%;
   box-shadow:
+    0 2px 10px rgba(255, 60, 40, 0.35),
     inset 0 -4px 8px rgba(80, 0, 0, 0.5),
     inset 0 3px 6px rgba(255, 180, 120, 0.4);
   overflow: hidden;
@@ -3695,8 +3700,9 @@ button:active:not(.toggle):not(.lang-btn):not(.modal-close)::after {
 .cn-lantern-glow {
   position: absolute;
   inset: 25%;
+  /* ОПТИМИЗАЦИЯ: убран filter: blur(3px) — градиент и так мягкий
+     (прозрачный к 70%), а blur ×9 при анимации мерцания грел GPU. */
   background: radial-gradient(circle, rgba(255, 220, 100, 0.7) 0%, transparent 70%);
-  filter: blur(3px);
   animation: cn-lantern-flicker 2.5s ease-in-out infinite;
 }
 @keyframes cn-lantern-flicker {
@@ -3753,7 +3759,8 @@ button:active:not(.toggle):not(.lang-btn):not(.modal-close)::after {
 .cn-char {
   position: absolute;
   color: #f0c040;
-  text-shadow: 0 0 12px rgba(240, 192, 64, 0.5), 0 0 6px rgba(255, 60, 40, 0.4);
+  /* ОПТИМИЗАЦИЯ: двойной text-shadow → одинарный (анимируется дрейфом). */
+  text-shadow: 0 0 10px rgba(240, 192, 64, 0.5);
   font-family: serif;
   font-weight: 900;
   pointer-events: none;
@@ -3854,7 +3861,8 @@ button:active:not(.toggle):not(.lang-btn):not(.modal-close)::after {
 .halloween-star {
   position: absolute;
   color: #fff5d0;
-  text-shadow: 0 0 8px #ff8228, 0 0 4px #fff;
+  /* ОПТИМИЗАЦИЯ: двойной text-shadow → одинарный (анимируется мерцанием). */
+  text-shadow: 0 0 6px #ff8228;
   animation: hl-star-twinkle 3s ease-in-out infinite;
   opacity: 0;
 }
@@ -3864,7 +3872,9 @@ button:active:not(.toggle):not(.lang-btn):not(.modal-close)::after {
 }
 .halloween-pumpkin {
   position: absolute;
-  filter: drop-shadow(0 8px 20px rgba(255, 100, 0, 0.4)) drop-shadow(0 4px 6px rgba(0, 0, 0, 0.5));
+  /* ОПТИМИЗАЦИЯ: двойной drop-shadow → одинарный. Тыква анимируется дыханием
+     (translateY+scale+rotate) → каждая тень пересчитывалась покадрово. */
+  filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.5));
   animation: pumpkin-breathe ease-in-out infinite;
 }
 @keyframes pumpkin-breathe {
@@ -3873,7 +3883,8 @@ button:active:not(.toggle):not(.lang-btn):not(.modal-close)::after {
 }
 .halloween-bat {
   position: absolute;
-  filter: drop-shadow(0 0 8px rgba(160, 96, 224, 0.6));
+  /* ОПТИМИЗАЦИЯ: убран filter: drop-shadow — мышь летит через весь экран,
+     свечение пересчитывалось каждый кадр. Контур даёт stroke в самой SVG. */
   animation: bat-glide linear infinite;
 }
 .bat-wings { animation: bat-flap 0.4s ease-in-out infinite; transform-origin: center; }
@@ -3952,8 +3963,10 @@ button:active:not(.toggle):not(.lang-btn):not(.modal-close)::after {
 .xm2-c2 { top: 22%; left: 55%; width: 10%; height: 10%; }
 .xm2-c3 { top: 55%; left: 40%; width: 8%; height: 8%; }
 @keyframes xm2-moon-pulse {
-  0%, 100% { opacity: 0.85; transform: scale(1); }
-  50%      { opacity: 1;    transform: scale(1.04); }
+  /* ОПТИМИЗАЦИЯ: убран scale — анимация scale на blur(20px) пересчитывала
+     размытый слой каждый кадр. Пульс только через opacity (дёшево). */
+  0%, 100% { opacity: 0.85; }
+  50%      { opacity: 1; }
 }
 
 /* Звёзды */
@@ -3997,7 +4010,8 @@ button:active:not(.toggle):not(.lang-btn):not(.modal-close)::after {
   width: 280px;
   height: 90px;
   pointer-events: none;
-  filter: drop-shadow(0 6px 12px rgba(0,0,0,0.55));
+  /* ОПТИМИЗАЦИЯ: убран filter: drop-shadow — Санта летит через весь экран,
+     тень пересчитывалась каждый кадр на крупном (280px) элементе. */
   animation: xm2-santa-fly 28s linear infinite;
 }
 .xm2-santa svg { width: 100%; height: 100%; }
@@ -4074,11 +4088,12 @@ button:active:not(.toggle):not(.lang-btn):not(.modal-close)::after {
 .xm2-flake-far {
   position: absolute;
   top: -10px;
-  background: radial-gradient(circle, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0.25) 50%, transparent 100%);
+  background: radial-gradient(circle, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0.2) 50%, transparent 100%);
   border-radius: 50%;
-  filter: blur(1px);
+  /* ОПТИМИЗАЦИЯ: убран filter: blur(1px) — пересчитывался каждый кадр падения
+     у каждой далёкой снежинки. Мягкость даёт сам радиальный градиент. */
   animation: xm2-snow-fall-far linear infinite;
-  opacity: 0.6;
+  opacity: 0.55;
   pointer-events: none;
 }
 @keyframes xm2-snow-fall-far {
