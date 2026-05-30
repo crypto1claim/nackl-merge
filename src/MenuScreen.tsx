@@ -112,7 +112,10 @@ export default function MenuScreen({ onConnected, onSettings, onShop, onAbout, o
       <div className="menu-glow menu-glow-2" />
       <div className="menu-glow menu-glow-3" />
 
-      <div className="menu-content">
+      <div
+        className="menu-content"
+        style={{ transform: kbShift ? `translateY(-${kbShift}px)` : undefined, transition: 'transform 0.25s ease' }}
+      >
         {/* Брендовая композиция: NACKL MERGE по центру без отвлекающих элементов */}
         <div className="brand-stage">
           {/* Центральный логотип — полная композиция NACKL MERGE с короной и банкой */}
