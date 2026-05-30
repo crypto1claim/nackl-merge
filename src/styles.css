@@ -192,9 +192,11 @@ canvas {
    когда экранная клавиатура поднимается (нужно для поля имени AN Wallet).
    `safe center` центрирует если влезает, иначе прижимает к верху без обрезания. */
 .menu-screen { position: fixed; inset: 0; display: flex; align-items: safe center; justify-content: center; padding: 24px; overflow-y: auto; -webkit-overflow-scrolling: touch; scroll-padding-bottom: 280px; }
-.menu-glow { position: absolute; border-radius: 50%; filter: blur(80px); opacity: 0.5; z-index: 0; pointer-events: none; }
-.menu-glow-1 { width: 320px; height: 320px; background: var(--accent); top: -80px; left: -80px; animation: float-1 8s ease-in-out infinite; }
-.menu-glow-2 { width: 280px; height: 280px; background: var(--accent-secondary); bottom: -60px; right: -60px; animation: float-2 10s ease-in-out infinite; }
+/* blur(80px) на iOS жрёт GPU. blur(40px) выглядит почти так же, но не лагает.
+   will-change: transform даёт GPU-acceleration анимации позиции. */
+.menu-glow { position: absolute; border-radius: 50%; filter: blur(40px); opacity: 0.45; z-index: 0; pointer-events: none; will-change: transform; }
+.menu-glow-1 { width: 280px; height: 280px; background: var(--accent); top: -70px; left: -70px; animation: float-1 8s ease-in-out infinite; }
+.menu-glow-2 { width: 240px; height: 240px; background: var(--accent-secondary); bottom: -50px; right: -50px; animation: float-2 10s ease-in-out infinite; }
 @keyframes float-1 { 0%,100%{transform:translate(0,0);} 50%{transform:translate(40px,60px);} }
 @keyframes float-2 { 0%,100%{transform:translate(0,0);} 50%{transform:translate(-50px,-40px);} }
 
@@ -1190,19 +1192,21 @@ canvas {
    ПРЕМИУМ-МЕНЮ
    ============================================================ */
 
-/* Третья сфера для более богатой атмосферы */
+/* Третья сфера для более богатой атмосферы.
+   blur 100→50, без анимации scale на мобиле — экономим GPU. */
 .menu-glow-3 {
-  width: 200px; height: 200px;
+  width: 180px; height: 180px;
   background: var(--accent-secondary);
   top: 40%; left: 50%;
   transform: translate(-50%, -50%);
-  opacity: 0.18;
-  filter: blur(100px);
+  opacity: 0.16;
+  filter: blur(50px);
   animation: float-3 14s ease-in-out infinite;
   position: absolute;
   border-radius: 50%;
   z-index: 0;
   pointer-events: none;
+  will-change: transform;
 }
 @keyframes float-3 {
   0%, 100% { transform: translate(-50%, -50%) scale(1); }
@@ -1537,7 +1541,12 @@ canvas {
   gap: 8px;
 }
 .menu-tiles-3 { grid-template-columns: 1fr 1fr 1fr; }
-.menu-tiles-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+/* 4 плитки на мобиле: 2x2, на больших — в ряд. На узких иначе «Настройки»
+   обрезаются и плитки выглядят перегружено. */
+.menu-tiles-4 { grid-template-columns: 1fr 1fr; }
+@media (min-width: 480px) {
+  .menu-tiles-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+}
 .menu-tiles-3 .menu-tile,
 .menu-tiles-4 .menu-tile {
   padding: 14px 8px;
@@ -1547,20 +1556,17 @@ canvas {
   align-items: center;
   gap: 6px;
 }
-.menu-tiles-4 .menu-tile { padding: 12px 4px; }
 .menu-tiles-3 .tile-icon,
 .menu-tiles-4 .tile-icon {
   width: 24px;
   height: 24px;
   margin-bottom: 2px;
 }
-.menu-tiles-4 .tile-icon { width: 22px; height: 22px; }
 .menu-tiles-3 .menu-tile-title,
 .menu-tiles-4 .menu-tile-title {
   font-size: 13px;
   font-weight: 800;
 }
-.menu-tiles-4 .menu-tile-title { font-size: 11px; }
 .menu-tiles-3 .menu-tile-subtitle {
   font-size: 10px;
   font-weight: 600;
@@ -5310,13 +5316,13 @@ button:active:not(.toggle):not(.lang-btn):not(.modal-close)::after {
   padding: 6px 10px;
 }
 
-/* === HUD power-up bar === */
+/* === HUD power-up bar — слева под HUD, не перекрывает кнопки справа === */
 .powerup-bar {
   position: fixed;
-  top: calc(env(safe-area-inset-top, 0px) + 76px);
-  right: 12px;
+  top: calc(env(safe-area-inset-top, 0px) + 88px);
+  left: 12px;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   gap: 8px;
   z-index: 60;
 }
