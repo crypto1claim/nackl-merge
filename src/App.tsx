@@ -339,13 +339,13 @@ export default function App() {
         </div>
       </div>
 
-      {/* Бустеры — отдельная полоска под HUD, видна только если что-то куплено */}
+      {/* Бустеры — горизонтальная полоса ВНИЗУ экрана. Только если что-то куплено. */}
       {(Object.values(powerupInv).some((n) => n > 0)) && (
-        <div className="powerup-bar">
+        <div className="powerup-tray">
           {POWERUPS.filter((pu) => powerupInv[pu.id] > 0).map((pu) => (
             <button
               key={pu.id}
-              className="powerup-btn"
+              className={`powerup-pill powerup-pill-${pu.id}`}
               onClick={() => {
                 Sound.click();
                 const e = engineRef.current;
@@ -358,8 +358,8 @@ export default function App() {
               }}
               title={pu.title}
             >
-              <span className="powerup-btn-icon">{pu.icon}</span>
-              <span className="powerup-btn-count">{powerupInv[pu.id as PowerUpId]}</span>
+              <PowerUpIcon id={pu.id} />
+              <span className="powerup-pill-count">{powerupInv[pu.id as PowerUpId]}</span>
             </button>
           ))}
         </div>
@@ -551,6 +551,57 @@ function PauseIcon() {
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <rect x="6" y="4" width="4" height="16" rx="1"/>
       <rect x="14" y="4" width="4" height="16" rx="1"/>
+    </svg>
+  );
+}
+
+/** Иконки бустеров — стиль соответствует Shake Damage кнопке.
+ *  removeBottom: корзина, boostNext: стрелка вверх с подложкой,
+ *  extraCharge: молния (как Shake Damage). */
+function PowerUpIcon({ id }: { id: 'removeBottom' | 'boostNext' | 'extraCharge' }) {
+  if (id === 'removeBottom') return (
+    <svg className="powerup-pill-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <defs>
+        <linearGradient id="pu-remove-grad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#ff8080"/>
+          <stop offset="100%" stopColor="#c01040"/>
+        </linearGradient>
+      </defs>
+      <path
+        d="M4 7h16M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2M6 7l1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13"
+        stroke="url(#pu-remove-grad)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"
+      />
+    </svg>
+  );
+  if (id === 'boostNext') return (
+    <svg className="powerup-pill-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <defs>
+        <linearGradient id="pu-boost-grad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#a0ffe0"/>
+          <stop offset="100%" stopColor="#10a070"/>
+        </linearGradient>
+      </defs>
+      <path
+        d="M12 4 L12 20 M5 11 L12 4 L19 11"
+        stroke="url(#pu-boost-grad)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none"
+      />
+      <path d="M5 22 L19 22" stroke="url(#pu-boost-grad)" strokeWidth="2" strokeLinecap="round" opacity="0.5"/>
+    </svg>
+  );
+  // extraCharge — молния
+  return (
+    <svg className="powerup-pill-icon" viewBox="0 0 24 24" aria-hidden="true">
+      <defs>
+        <linearGradient id="pu-bolt-grad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#fff8d0"/>
+          <stop offset="50%" stopColor="#ffd040"/>
+          <stop offset="100%" stopColor="#ff7020"/>
+        </linearGradient>
+      </defs>
+      <path
+        d="M13 2 L4 14 h7 l-2 8 L20 10 h-7 l2-8z"
+        fill="url(#pu-bolt-grad)" stroke="#a04010" strokeWidth="0.8" strokeLinejoin="round"
+      />
     </svg>
   );
 }

@@ -5316,50 +5316,76 @@ button:active:not(.toggle):not(.lang-btn):not(.modal-close)::after {
   padding: 6px 10px;
 }
 
-/* === HUD power-up bar — слева под HUD, не перекрывает кнопки справа === */
-.powerup-bar {
+/* === Powerup tray — горизонтальная плавающая полоса внизу экрана === */
+.powerup-tray {
   position: fixed;
-  top: calc(env(safe-area-inset-top, 0px) + 88px);
-  left: 12px;
+  left: 50%;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
+  transform: translateX(-50%);
   display: flex;
-  flex-direction: row;
-  gap: 8px;
-  z-index: 60;
-}
-.powerup-btn {
-  position: relative;
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
+  gap: 12px;
+  padding: 8px 12px;
   background: linear-gradient(180deg,
-    color-mix(in srgb, var(--panel-bg) 92%, transparent) 0%,
-    color-mix(in srgb, var(--canvas-bg-inner) 70%, transparent) 100%);
-  border: 1px solid color-mix(in srgb, var(--accent-secondary, #6affe0) 35%, transparent);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 22px;
-  cursor: pointer;
-  box-shadow:
-    0 2px 8px rgba(0, 0, 0, 0.3),
-    0 0 12px rgba(106, 255, 224, 0.15) inset;
-  transition: transform 0.1s;
-}
-.powerup-btn:active { transform: scale(0.92); }
-.powerup-btn-count {
-  position: absolute;
-  bottom: -4px;
-  right: -4px;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 5px;
+    rgba(15, 12, 30, 0.85) 0%,
+    rgba(10, 8, 20, 0.95) 100%);
+  border: 1px solid rgba(106, 255, 224, 0.18);
   border-radius: 999px;
-  background: linear-gradient(180deg, #ffd84d, #f0a020);
-  color: #2a1a00;
-  font-size: 10px;
-  font-weight: 800;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.5),
+    0 0 24px rgba(106, 255, 224, 0.08) inset;
+  z-index: 60;
+  animation: powerup-tray-in 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes powerup-tray-in {
+  from { opacity: 0; transform: translate(-50%, 12px); }
+  to   { opacity: 1; transform: translate(-50%, 0); }
+}
+.powerup-pill {
+  position: relative;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: linear-gradient(180deg,
+    rgba(40, 30, 70, 0.9) 0%,
+    rgba(20, 15, 45, 0.95) 100%);
+  border: 1.5px solid rgba(255, 255, 255, 0.12);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 0 8px rgba(255, 216, 77, 0.4);
+  cursor: pointer;
+  transition: transform 0.12s, box-shadow 0.2s;
+  padding: 0;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.1) inset,
+    0 4px 10px rgba(0, 0, 0, 0.4);
+}
+.powerup-pill:active { transform: scale(0.92); }
+.powerup-pill-removeBottom { border-color: rgba(255, 128, 128, 0.4); box-shadow: 0 1px 0 rgba(255,255,255,0.1) inset, 0 4px 10px rgba(0,0,0,0.4), 0 0 12px rgba(255, 80, 80, 0.25); }
+.powerup-pill-boostNext    { border-color: rgba(106, 255, 224, 0.5); box-shadow: 0 1px 0 rgba(255,255,255,0.1) inset, 0 4px 10px rgba(0,0,0,0.4), 0 0 12px rgba(106, 255, 224, 0.3); }
+.powerup-pill-extraCharge  { border-color: rgba(255, 216, 77, 0.5);  box-shadow: 0 1px 0 rgba(255,255,255,0.1) inset, 0 4px 10px rgba(0,0,0,0.4), 0 0 14px rgba(255, 216, 77, 0.35); }
+.powerup-pill-icon {
+  width: 26px;
+  height: 26px;
+  filter: drop-shadow(0 0 6px currentColor);
+}
+.powerup-pill-count {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #ffe070 0%, #ff9020 100%);
+  color: #2a1a00;
+  font-size: 11px;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4), 0 0 10px rgba(255, 216, 77, 0.5);
+  border: 2px solid rgba(10, 8, 20, 0.9);
+  font-variant-numeric: tabular-nums;
 }
