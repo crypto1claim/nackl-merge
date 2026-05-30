@@ -146,14 +146,29 @@ button, a, [role="button"] {
   opacity: 0.55;
 }
 
-/* Узкие экраны — сжимаем кошелёк */
-@media (max-width: 380px) {
-  .hud { padding: 8px; gap: 4px; }
-  .hud-pill { height: 32px; padding: 0 10px; font-size: 12px; border-radius: 16px; }
-  .hud-pill-wallet { max-width: 100px; font-size: 11px; }
-  .hud-pill-next { padding: 0 6px 0 3px; }
+/* Узкие/средние экраны — ужимаем всё чтобы 3 бустера + Shake + Pause +
+   Settings + cryptoclaim + next + earned помещались на iPhone 14 (390px).
+   На широких (≥ 410px) — стандартный размер. */
+@media (max-width: 410px) {
+  .hud { padding: 0 6px; gap: 4px; height: calc(50px + env(safe-area-inset-top)); }
+  .hud-left, .hud-right { gap: 4px; height: 32px; }
+  .hud-pill { height: 32px; padding: 0 8px; font-size: 11px; border-radius: 16px; gap: 4px; }
+  .hud-pill-wallet { padding: 0 8px; font-size: 10px; letter-spacing: -0.3px; }
+  .hud-pill-next { padding: 0 5px 0 3px; }
   .hud-pill-next img { width: 20px; height: 20px; }
-  .hud-left, .hud-right { gap: 4px; }
+  .hud-pill-earned { padding: 0 7px; }
+  /* Все кнопки 30px на узких */
+  .settings-fab { width: 30px; height: 30px; }
+  .settings-fab svg { width: 14px; height: 14px; }
+  .powerup-mini { width: 30px; height: 30px; }
+  .powerup-mini .powerup-pill-icon { width: 15px; height: 15px; }
+  .powerup-mini-count { width: 16px; height: 16px; font-size: 9px; top: -4px; right: -4px; border-width: 1.5px; }
+  .shake-damage-btn { width: 30px; height: 30px; }
+  .shake-damage-icon { width: 16px; height: 16px; }
+  .shake-damage-dots { gap: 3px; }
+  .shake-dot { width: 4px; height: 4px; }
+  /* Группа бустеров — без правой границы и без отступа справа на узких */
+  .powerup-group { padding-right: 4px; margin-right: 2px; gap: 4px; }
 }
 
 /* Поля старого HUD (которые ещё могут использоваться где-то) — нейтральная база */
