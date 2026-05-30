@@ -299,30 +299,26 @@ export default function App() {
   return (
     <>
       <div className="hud">
+        {/* Левая группа: кошелёк + след монета + заработано */}
         <div className="hud-left">
-          <div className="hud-wallet">
+          <div className="hud-pill hud-pill-wallet" title={wallet.address || ''}>
             <span className="wallet-dot" />
-            {wallet.address ? shortAddress(wallet.address) : t('hud.connected')}
+            <span className="hud-pill-text">{wallet.address ? shortAddress(wallet.address) : t('hud.connected')}</span>
           </div>
-          <div className="hud-next">
-            <div className="hud-label">{t('hud.next')}</div>
-            <div className="hud-next-coin">
-              <img
-                src={`coins/${spriteFile(FRUITS[nextLevel].ticker)}`}
-                alt={FRUITS[nextLevel].ticker}
-                width="32" height="32"
-              />
-            </div>
+          <div className="hud-pill hud-pill-next" title={t('hud.next')}>
+            <img
+              src={`coins/${spriteFile(FRUITS[nextLevel].ticker)}`}
+              alt={FRUITS[nextLevel].ticker}
+              width="22" height="22"
+            />
+            <span className="hud-pill-arrow">›</span>
+          </div>
+          <div className="hud-pill hud-pill-earned" title={t('hud.earned')}>
+            <span className="hud-pill-text">+{formatMRG(sessionEarned)}</span>
+            <span className="hud-pill-suffix">MRG</span>
           </div>
         </div>
         <div className="hud-right">
-          {/* Заработано за партию. БАЛАНС убран — он не нужен в игре,
-              виден в меню и на game-over экране. Это освобождает место под
-              бустеры в HUD-right, чтобы Settings не уходил за край экрана. */}
-          <div className="hud-stat hud-stat-earned">
-            <span className="hud-stat-label">{t('hud.earned')}</span>
-            <span className="hud-stat-value">+{formatMRG(sessionEarned)}</span>
-          </div>
           {/* Бустеры — встроены в HUD-right ПЕРЕД Shake Damage.
               Показываем «осталось / 3» — сколько ещё можно использовать
               за партию (лимит 3 каждого), а не сколько куплено. */}
