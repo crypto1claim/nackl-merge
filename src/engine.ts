@@ -63,6 +63,8 @@ export interface GameCallbacks {
   onBombStateChange?: (state: { charge: number; ready: number; used: number; maxUses: number }) => void;
   /** Вызывается в момент детонации Shake Damage — для UI-вспышки */
   onShakeDamageDetonated?: () => void;
+  /** Вызывается при использовании бустера — UI обновляет счётчик доступного. */
+  onPowerupChange?: () => void;
 }
 
 // Тактильный хелпер — Telegram HapticFeedback или browser fallback.
@@ -152,6 +154,17 @@ export class GameEngine {
   private bombCharge = 0;
   /** Сколько Shake Damage уже использовано в этой партии */
   private bombUsedThisGame = 0;
+  // Лимит каждого бустера за партию (макс 3 применения за игру).
+  private static readonly POWERUP_LIMIT_PER_GAME = 3;
+  private powerupUsedThisGame: Record<PowerUps.PowerUpId, number> = {
+    removeBottom: 0, boostNext: 0, extraCharge: 0,
+  };
+  /** Сколько раз бустер можно ещё применить в этой партии (с учётом инвентаря). */
+  getPowerupRemaining(id: PowerUps.PowerUpId): number {
+    const inventory = PowerUps.getCount(id);
+    const limitLeft = GameEngine.POWERUP_LIMIT_PER_GAME - (this.powerupUsedThisGame[id] || 0);
+    return Math.max(0, Math.min(inventory, limitLeft));
+  }
   /** Сколько готовых зарядов на руках (накопленные но не потраченные) */
   private bombReadyCharges = 0;
   private lastThudAt = 0;
@@ -218,18 +231,28 @@ export class GameEngine {
   getUsedCharges() { return this.bombUsedThisGame; }
 
   // === Power-ups: применить бустер из инвентаря ===
+  /** Проверка лимита 3 за партию. */
+  private canUsePowerup(id: PowerUps.PowerUpId): boolean {
+    return (this.powerupUsedThisGame[id] || 0) < GameEngine.POWERUP_LIMIT_PER_GAME;
+  }
+
   /** Дать +1 готовый заряд Shake Damage (бустер extraCharge). */
   applyExtraCharge() {
+    if (!this.canUsePowerup('extraCharge')) return false;
     if (!PowerUps.consume('extraCharge')) return false;
+    this.powerupUsedThisGame.extraCharge += 1;
     this.bombReadyCharges = Math.min(SHAKE_DAMAGE_MAX_USES - this.bombUsedThisGame, this.bombReadyCharges + 1);
     this.emitBombState();
     haptic('heavy');
+    this.cb.onPowerupChange?.();
     return true;
   }
 
   /** Бустер boostNext: следующая монета будет на 1 уровень выше. */
   applyBoostNext() {
+    if (!this.canUsePowerup('boostNext')) return false;
     if (!PowerUps.consume('boostNext')) return false;
+    this.powerupUsedThisGame.boostNext += 1;
     this.nextLevel = Math.min(FRUITS.length - 2, this.nextLevel + 1);
     if (this.aiming) {
       this.aiming.level = Math.min(FRUITS.length - 2, this.aiming.level + 1);
@@ -238,23 +261,27 @@ export class GameEngine {
     this.cb.onNextLevelChange?.(this.nextLevel);
     this.needsRender = true;
     haptic('medium');
+    this.cb.onPowerupChange?.();
     return true;
   }
 
   /** Бустер removeBottom: удалить случайную монету из нижней половины банки. */
   applyRemoveBottom() {
+    if (!this.canUsePowerup('removeBottom')) return false;
     const candidates = Matter.Composite.allBodies(this.world).filter((b) => {
       const data = (b as any).fruitData as FruitData | undefined;
       return data && !data.merged && b.position.y > H / 2;
     });
     if (candidates.length === 0) return false; // нечего удалять — не списываем
     if (!PowerUps.consume('removeBottom')) return false;
+    this.powerupUsedThisGame.removeBottom += 1;
     const target = candidates[Math.floor(Math.random() * candidates.length)];
     this.particles.burst(target.position.x, target.position.y, '#ff6b6b', 15, 4);
     Matter.Composite.remove(this.world, target);
     Sound.click();
     haptic('medium');
     this.needsRender = true;
+    this.cb.onPowerupChange?.();
     return true;
   }
 
@@ -496,22 +523,8 @@ export class GameEngine {
           Achievements.onMerge(nextLevel);
           Achievements.onCombo(this.comboCount);
 
-          // Подсказка про Shake Damage — показываем ОДИН раз когда игрок
-          // достигает комбо ×5 (он близко, но порог теперь ×10). Объясняет
-          // зачем молния и куда стремиться.
-          if (this.comboCount === 5) {
-            try {
-              if (localStorage.getItem('nackl_shake_hint_seen') !== '1') {
-                localStorage.setItem('nackl_shake_hint_seen', '1');
-                this.comboPopups.push({
-                  x: W / 2, y: H / 2 - 40,
-                  text: '⚡ ДЕЛАЙ КОМБО ×10 → ЗАРЯД SHAKE DAMAGE',
-                  life: 3.0,
-                  color: '#ffd040',
-                });
-              }
-            } catch { /* localStorage может быть недоступен */ }
-          }
+          // Раньше тут была подсказка про Shake Damage — убрана по запросу,
+          // игроки разберутся сами по круговому прогрессу.
 
           // === ЗАРЯД SHAKE DAMAGE === шкала растёт из комбо ×3 и выше.
           // При 100% → +1 готовый заряд, шкала ноль.
@@ -728,6 +741,8 @@ export class GameEngine {
     this.bombCharge = 0;
     this.bombReadyCharges = 0;
     this.bombUsedThisGame = 0;
+    this.powerupUsedThisGame = { removeBottom: 0, boostNext: 0, extraCharge: 0 };
+    this.cb.onPowerupChange?.();
     this.emitBombState();
     this.nextLevel = randomSpawnLevel();
     this.cb.onScoreChange(this.score);

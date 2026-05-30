@@ -20,7 +20,7 @@ import DailyBonusModal from './DailyBonusModal';
 import AchievementToast from './AchievementToast';
 import AchievementsScreen from './AchievementsScreen';
 import * as Achievements from './achievements';
-import { POWERUPS, subscribeInventory, getInventory, type PowerUpId } from './powerups';
+import { POWERUPS, subscribeInventory, getInventory } from './powerups';
 
 export default function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -119,6 +119,7 @@ export default function App() {
       onCombo: (count) => setComboBanner({ count, key: Date.now() }),
       onBombStateChange: (s) => setBombState(s),
       onShakeDamageDetonated: () => setShakeFlash(Date.now()),
+      onPowerupChange: () => setPowerupInv(getInventory()),
       onGameOver: (earned) => {
         setFinalEarned(earned);
         // Записываем в общий баланс
@@ -322,27 +323,35 @@ export default function App() {
             <span className="hud-stat-label">{t('hud.earned')}</span>
             <span className="hud-stat-value">+{formatMRG(sessionEarned)}</span>
           </div>
-          {/* Бустеры — встроены в HUD-right ПЕРЕД Shake Damage, маленькие */}
-          {POWERUPS.filter((pu) => powerupInv[pu.id] > 0).map((pu) => (
-            <button
-              key={pu.id}
-              className={`powerup-mini powerup-mini-${pu.id}`}
-              onClick={() => {
-                Sound.click();
-                const e = engineRef.current;
-                if (!e) return;
-                let ok = false;
-                if (pu.id === 'extraCharge')   ok = e.applyExtraCharge();
-                if (pu.id === 'boostNext')     ok = e.applyBoostNext();
-                if (pu.id === 'removeBottom')  ok = e.applyRemoveBottom();
-                if (!ok) hapticSelection();
-              }}
-              title={pu.title}
-            >
-              <PowerUpIcon id={pu.id} />
-              <span className="powerup-mini-count">{powerupInv[pu.id as PowerUpId]}</span>
-            </button>
-          ))}
+          {/* Бустеры — встроены в HUD-right ПЕРЕД Shake Damage.
+              Показываем «осталось / 3» — сколько ещё можно использовать
+              за партию (лимит 3 каждого), а не сколько куплено. */}
+          {POWERUPS.map((pu) => {
+            const e = engineRef.current;
+            const remaining = e ? e.getPowerupRemaining(pu.id) : powerupInv[pu.id];
+            if (remaining <= 0 && powerupInv[pu.id] === 0) return null;
+            const disabled = remaining <= 0;
+            return (
+              <button
+                key={pu.id}
+                className={`powerup-mini powerup-mini-${pu.id} ${disabled ? 'is-spent' : ''}`}
+                disabled={disabled}
+                onClick={() => {
+                  Sound.click();
+                  if (!e) return;
+                  let ok = false;
+                  if (pu.id === 'extraCharge')   ok = e.applyExtraCharge();
+                  if (pu.id === 'boostNext')     ok = e.applyBoostNext();
+                  if (pu.id === 'removeBottom')  ok = e.applyRemoveBottom();
+                  if (!ok) hapticSelection();
+                }}
+                title={pu.title}
+              >
+                <PowerUpIcon id={pu.id} />
+                <span className="powerup-mini-count">{remaining}</span>
+              </button>
+            );
+          })}
           {/* Shake Damage — круглая кнопка с круговым прогрессом и 3 точками */}
           <ShakeDamageButton
             state={bombState}

@@ -5346,24 +5346,38 @@ button:active:not(.toggle):not(.lang-btn):not(.modal-close)::after {
   height: 19px;
   filter: drop-shadow(0 0 4px currentColor);
 }
+/* Бейдж количества — снизу-справа, чётко читаемая цифра,
+   высокий контраст: тёмный круг с белой цифрой. */
 .powerup-mini-count {
   position: absolute;
-  top: -3px;
-  right: -3px;
-  min-width: 16px;
-  height: 16px;
-  padding: 0 4px;
+  bottom: -4px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
   border-radius: 999px;
-  background: linear-gradient(180deg, #ffe070 0%, #ff9020 100%);
-  color: #2a1a00;
-  font-size: 9px;
+  background: #1a1234;
+  color: #fff;
+  font-size: 11px;
   font-weight: 900;
+  line-height: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4), 0 0 6px rgba(255, 216, 77, 0.45);
-  border: 1.5px solid rgba(10, 8, 20, 0.9);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+  border: 2px solid rgba(255, 255, 255, 0.85);
   font-variant-numeric: tabular-nums;
+}
+/* Если бустер исчерпан за партию — кнопка тусклая, без glow */
+.powerup-mini.is-spent {
+  opacity: 0.35;
+  cursor: not-allowed;
+  filter: grayscale(0.7);
+}
+.powerup-mini.is-spent .powerup-mini-count {
+  background: #444;
+  border-color: rgba(255, 255, 255, 0.4);
+  color: rgba(255, 255, 255, 0.6);
 }
 /* На узких экранах HUD плотный — ещё компактнее */
 @media (max-width: 380px) {
