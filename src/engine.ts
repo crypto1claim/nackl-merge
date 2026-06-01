@@ -844,6 +844,9 @@ export class GameEngine {
     for (const body of Matter.Composite.allBodies(this.world)) {
       const data = (body as any).fruitData as FruitData | undefined;
       if (!data) continue;
+      // Пропускаем уже слитые монеты (ждут удаления в микрозадаче) — иначе
+      // во время массового взрыва они могут вызвать ложный game over.
+      if (data.merged) continue;
       const topY = body.position.y - FRUITS[data.level].radius;
       const speed = Math.hypot(body.velocity.x, body.velocity.y);
       const above = topY < DANGER_LINE_Y;

@@ -4,7 +4,7 @@
 // Тикер/название/цвета берутся из активного набора (coin_sets.ts).
 // ============================================================
 
-import { getActiveCoins, type CoinDef } from './coin_sets';
+import { getActiveCoins, subscribeCoinSet, type CoinDef } from './coin_sets';
 
 export interface FruitDef {
   level: number;
@@ -43,9 +43,17 @@ const LEVEL_PARAMS = [
  * Вызывается каждый раз когда движку нужны определения —
  * благодаря этому смена набора сразу даёт новые тикеры/цвета.
  */
+// ПРОИЗВОДИТЕЛЬНОСТЬ: getFruits() раньше пересобирал 11-элементный массив
+// новых объектов на КАЖДОЕ обращение к FRUITS (включая FRUITS[level] и
+// FRUITS.length в горячем цикле рендера) → сотни аллокаций в секунду, лаги
+// и нагрев на iPhone 14. Теперь результат кэшируется и пересобирается только
+// при смене набора/варианта монет (через subscribeCoinSet ниже).
+let _fruitsCache: FruitDef[] | null = null;
+
 export function getFruits(): FruitDef[] {
+  if (_fruitsCache) return _fruitsCache;
   const coins: CoinDef[] = getActiveCoins();
-  return coins.map((c, level) => ({
+  _fruitsCache = coins.map((c, level) => ({
     level,
     ticker: c.ticker,
     name: c.name,
@@ -56,7 +64,11 @@ export function getFruits(): FruitDef[] {
     glow: c.glow,
     score: LEVEL_PARAMS[level].score,
   }));
+  return _fruitsCache;
 }
+
+// Сбрасываем кэш при смене варианта монет — getFruits() пересоберётся 1 раз.
+subscribeCoinSet(() => { _fruitsCache = null; });
 
 /**
  * Обратная совместимость: экспортируем геттер как массив через Proxy.

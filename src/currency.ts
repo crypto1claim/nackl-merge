@@ -33,22 +33,29 @@ export function getBalance(): number { return balance; }
 /** Лучший single-game счёт. */
 export function getBest(): number { return best; }
 
-/** Заработано в этой игре — добавляется к балансу. */
+/** Заработано — добавляется к балансу. НЕ трогает «рекорд партии»:
+ *  раньше любой бонус (daily/достижения) перезаписывал best, и HUD
+ *  показывал неправильный рекорд. Рекорд обновляется только recordBest(). */
 export function earnMRG(amount: number) {
   if (amount <= 0) return;
   balance += amount;
   writeNumber(BALANCE_KEY, balance);
-  // Если это новый single-game рекорд
-  if (amount > best) {
-    best = amount;
+  listeners.forEach((cb) => cb(balance));
+}
+
+/** Обновить лучший single-game счёт. Вызывается ТОЛЬКО по итогам партии. */
+export function recordBest(score: number) {
+  if (score > best) {
+    best = score;
     writeNumber(BEST_KEY, best);
   }
-  listeners.forEach((cb) => cb(balance));
 }
 
 /** Списать MRG. Возвращает true если успешно. */
 export function spendMRG(amount: number): boolean {
-  if (amount > balance) return false;
+  // Защита инварианта: только положительные суммы и не больше баланса
+  // (иначе отрицательный amount «начислил» бы баланс).
+  if (amount <= 0 || amount > balance) return false;
   balance -= amount;
   writeNumber(BALANCE_KEY, balance);
   listeners.forEach((cb) => cb(balance));

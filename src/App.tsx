@@ -13,7 +13,7 @@ import { t, subscribeLang } from './i18n';
 import { applyTheme, subscribeTheme } from './themes';
 import { Sound } from './sound';
 import { FRUITS } from './fruits';
-import { earnMRG, getBalance, getBest, subscribeBalance, formatMRG } from './currency';
+import { earnMRG, recordBest, getBalance, getBest, subscribeBalance, formatMRG } from './currency';
 import { subscribeCoinSet } from './coin_sets';
 import { claimDailyBonus } from './dailyBonus';
 import DailyBonusModal from './DailyBonusModal';
@@ -124,9 +124,10 @@ export default function App() {
         setFinalEarned(earned);
         // Записываем в общий баланс
         earnMRG(earned);
-        // Проверка single-game рекорда
+        // Проверка single-game рекорда (best обновляется ТОЛЬКО здесь)
         const prevBest = getBest();
-        if (earned >= prevBest) {
+        if (earned > prevBest) {
+          recordBest(earned);
           setBest(earned);
           setNewRecord(earned > 0);
         } else {
