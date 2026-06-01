@@ -77,8 +77,9 @@ export default function OnboardingScreen({ onProceed }: Props) {
       <div className="menu-glow menu-glow-2" />
 
       <div className="onboarding-content">
-        {/* Переключатель языка — выбор сохраняется на всю игру */}
+        {/* Переключатель языка — закреплён в углу, виден всегда; выбор сохраняется на всю игру */}
         <div className="onboarding-lang">
+          <span className="onboarding-lang-globe" aria-hidden="true">🌐</span>
           <div className="lang-toggle">
             <button
               className={`lang-btn ${lang === 'en' ? 'active' : ''}`}

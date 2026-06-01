@@ -4902,8 +4902,8 @@ button:active:not(.toggle):not(.lang-btn):not(.modal-close)::after {
   inset: 0;
   background: var(--bg);
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
   padding: 24px 20px;
   overflow-y: auto;
   z-index: 100;
@@ -4917,14 +4917,27 @@ button:active:not(.toggle):not(.lang-btn):not(.modal-close)::after {
   gap: 24px;
   position: relative;
   z-index: 2;
+  /* margin:auto центрирует по вертикали, когда есть место, НО при переполнении
+     верх контента остаётся доступным для скролла (в отличие от justify-content,
+     который обрезал верх — из-за этого переключатель языка был недосягаем). */
+  margin: auto 0;
 }
 
-/* Переключатель языка — прижат вправо над логотипом */
+/* Переключатель языка — ЗАКРЕПЛЁН в правом верхнем углу, всегда виден и
+   доступен независимо от скролла (раньше уезжал за верх экрана). */
 .onboarding-lang {
-  width: 100%;
+  position: fixed;
+  top: max(12px, env(safe-area-inset-top));
+  right: 14px;
+  z-index: 110;
   display: flex;
-  justify-content: flex-end;
-  margin-bottom: -8px;
+  align-items: center;
+  gap: 6px;
+}
+.onboarding-lang-globe {
+  font-size: 16px;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
+  opacity: 0.9;
 }
 
 /* Hero — логотип сверху */
