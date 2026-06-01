@@ -480,6 +480,7 @@ export class GameEngine {
         const nextDef = FRUITS[nextLevel];
 
         queueMicrotask(() => {
+         try {
           if (this.gameOver) return;
           if (!Matter.Composite.allBodies(this.world).includes(a)) return;
           Matter.Composite.remove(this.world, a);
@@ -598,6 +599,10 @@ export class GameEngine {
             else if (nextLevel >= 4) haptic('medium');
             else                     haptic('light');
           }
+         } catch (err) {
+           // eslint-disable-next-line no-console
+           console.error('[engine.merge] слияние прервано из-за ошибки', err);
+         }
         });
       }
     });
@@ -785,17 +790,18 @@ export class GameEngine {
 
   private loop = (time: number) => {
     if (!this.running) return;
+    // Защита стабильности: единичный сбой в кадре (физика/рендер) НЕ должен
+    // «замораживать» игру навсегда. Ошибку ловим и логируем, а в finally всё
+    // равно планируем следующий кадр — игра продолжается.
+    try {
     const dt = Math.min((time - this.lastTime), 33);
     this.lastTime = time;
 
     // Один раз за кадр берём список тел (раньше allBodies звался 4-5 раз).
     const bodies = Matter.Composite.allBodies(this.world);
 
-    // Idle-skip: нечего обновлять и рисовать — выходим дёшево.
-    if (!this.isSceneActive(bodies)) {
-      this.rafId = requestAnimationFrame(this.loop);
-      return;
-    }
+    // Idle-skip: нечего обновлять и рисовать — выходим дёшево (finally запланирует кадр).
+    if (!this.isSceneActive(bodies)) return;
     this.needsRender = false;
 
     if (!this.gameOver && !this.paused) {
@@ -826,7 +832,12 @@ export class GameEngine {
     }
 
     this.render(bodies);
-    this.rafId = requestAnimationFrame(this.loop);
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('[engine.loop] кадр пропущен из-за ошибки', err);
+    } finally {
+      if (this.running) this.rafId = requestAnimationFrame(this.loop);
+    }
   };
 
   private checkGameOver(time: number) {

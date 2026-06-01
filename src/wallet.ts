@@ -28,8 +28,11 @@ function saveWallet(state: WalletState) {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch { /* */ }
 }
 
-export async function connectWallet(walletName: string): Promise<WalletState> {
-  await initBeeEngine();
+export async function connectWallet(
+  walletName: string,
+  onProgress?: (pct: number) => void,
+): Promise<WalletState> {
+  await initBeeEngine(onProgress);
   const { deepLink, alreadyAuthorized } = await authorize(walletName);
 
   if (alreadyAuthorized) {

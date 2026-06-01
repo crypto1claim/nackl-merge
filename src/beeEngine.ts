@@ -42,10 +42,39 @@ let miner: Miner | null = null;
 let pendingKeys: ResultOfGenMiningKeys | null = null;
 let pendingMinerAddress: string | null = null;
 
-export async function initBeeEngine(): Promise<void> {
+export async function initBeeEngine(onProgress?: (pct: number) => void): Promise<void> {
   if (wasmReady) return;
-  await __wbg_init({ module_or_path: '/bee_sdk_bg.wasm' });
+  // WASM ~7.7 МБ — на мобильной сети это заметная пауза. Грузим вручную через
+  // fetch со стримом, чтобы показать прогресс, и передаём готовые байты в init.
+  // При сбое стрима — фоллбэк на стандартную загрузку по URL. Если и она упадёт
+  // (сеть недоступна) — ошибка уходит наверх, UI предложит повторить.
+  try {
+    const resp = await fetch('/bee_sdk_bg.wasm');
+    if (!resp.ok || !resp.body) throw new Error(`WASM HTTP ${resp.status}`);
+    const total = Number(resp.headers.get('Content-Length')) || 0;
+    const reader = resp.body.getReader();
+    const chunks: Uint8Array[] = [];
+    let loaded = 0;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (!value) continue;
+      chunks.push(value);
+      loaded += value.length;
+      const pct = total > 0
+        ? Math.min(99, Math.round((loaded / total) * 100))
+        : Math.min(95, Math.round((loaded / (8 * 1024 * 1024)) * 100));
+      onProgress?.(pct);
+    }
+    const merged = new Uint8Array(loaded);
+    let off = 0;
+    for (const c of chunks) { merged.set(c, off); off += c.length; }
+    await __wbg_init({ module_or_path: merged.buffer });
+  } catch {
+    await __wbg_init({ module_or_path: '/bee_sdk_bg.wasm' });
+  }
   wasmReady = true;
+  onProgress?.(100);
 }
 
 export async function authorize(walletName: string): Promise<{ deepLink: string | null; alreadyAuthorized: boolean }> {

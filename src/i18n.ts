@@ -22,7 +22,9 @@ const TRANSLATIONS = {
     'menu.about_short': 'Об игре',
     'menu.about_subtitle': 'энтропия и NACKL',
     'menu.connecting': 'Подключение...',
+    'menu.loading_engine': 'Загрузка движка',
     'menu.error': 'Подключение не удалось, попробуй ещё раз',
+    'menu.error_engine': 'Не удалось загрузить движок игры. Проверь соединение и попробуй снова.',
     'menu.footer': 'Powered by Acki Nacki',
     'menu.settings': 'Настройки',
 
@@ -184,7 +186,9 @@ const TRANSLATIONS = {
     'menu.shop': 'Shop',
     'menu.shop_subtitle': 'themes & coins',
     'menu.connecting': 'Connecting...',
+    'menu.loading_engine': 'Loading engine',
     'menu.error': 'Connection failed, try again',
+    'menu.error_engine': 'Failed to load the game engine. Check your connection and try again.',
     'menu.footer': 'Powered by Acki Nacki',
     'menu.settings': 'Settings',
 

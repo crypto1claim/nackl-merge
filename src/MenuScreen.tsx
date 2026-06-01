@@ -24,15 +24,18 @@ export default function MenuScreen({ onConnected, onSettings, onShop, onAbout, o
   const [walletName, setWalletName] = useState('');
   const [pendingState, setPendingState] = useState<WalletState | null>(null);
   const [waitingConfirm, setWaitingConfirm] = useState(false);
+  // Прогресс загрузки WASM-движка (~7.7МБ): null = ещё не грузим / уже готов.
+  const [wasmProgress, setWasmProgress] = useState<number | null>(null);
 
   const handleConnect = async () => {
     if (!walletName.trim()) { setError('Введи имя AN Wallet'); return; }
     setConnecting(true);
     setError(null);
+    setWasmProgress(0);
     Sound.click();
     hapticImpact('medium');
     try {
-      const state = await connectWallet(walletName.trim());
+      const state = await connectWallet(walletName.trim(), (pct) => setWasmProgress(pct));
       if (state.minerReady) {
         Sound.fanfare();
         hapticNotification('success');
@@ -47,11 +50,17 @@ export default function MenuScreen({ onConnected, onSettings, onShop, onAbout, o
       // (get_miner_address_by_wallet_name → KitError Account 205).
       if (/wallet name|miner address|account|205|not found/i.test(msg)) {
         setError('AN Wallet с таким именем не найден. Установи AN Wallet, зарегистрируй имя и введи его точно.');
+      } else if (/wasm|fetch|network|load|http|abort/i.test(msg)) {
+        // Сбой загрузки движка (плохая сеть/таймаут). Кнопка остаётся —
+        // повторное нажатие = ретрай (initBeeEngine докачает с нуля).
+        setError(t('menu.error_engine'));
       } else {
         setError(t('menu.error'));
       }
       hapticNotification('error');
       setConnecting(false);
+    } finally {
+      setWasmProgress(null);
     }
   };
 
@@ -219,7 +228,13 @@ export default function MenuScreen({ onConnected, onSettings, onShop, onAbout, o
               onClick={handleConnect}
               disabled={connecting || !walletName.trim()}
             >
-              {connecting ? <><span className="spinner" />{t('menu.connecting')}</> : <><WalletIcon />{t('menu.cta')}</>}
+              {connecting
+                ? <><span className="spinner" />{
+                    wasmProgress !== null && wasmProgress < 100
+                      ? `${t('menu.loading_engine')} ${wasmProgress}%`
+                      : t('menu.connecting')
+                  }</>
+                : <><WalletIcon />{t('menu.cta')}</>}
             </button>
             {error && <p className="menu-error">{error}</p>}
           </div>
