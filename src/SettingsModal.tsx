@@ -75,7 +75,7 @@ export default function SettingsModal({ onClose, onWalletDisconnect }: Props) {
               onClick={() => {
                 Sound.click();
                 try { localStorage.removeItem('acki_merge_tutorial_seen'); } catch {}
-                alert('Обучение будет показано при следующем входе в игру.');
+                alert(t('settings.tutorial_reset_done'));
               }}
               title="Показать обучение заново"
             >

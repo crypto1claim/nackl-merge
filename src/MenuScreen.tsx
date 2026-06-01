@@ -28,7 +28,7 @@ export default function MenuScreen({ onConnected, onSettings, onShop, onAbout, o
   const [wasmProgress, setWasmProgress] = useState<number | null>(null);
 
   const handleConnect = async () => {
-    if (!walletName.trim()) { setError('Введи имя AN Wallet'); return; }
+    if (!walletName.trim()) { setError(t('menu.err_enter_name')); return; }
     setConnecting(true);
     setError(null);
     setWasmProgress(0);
@@ -49,7 +49,7 @@ export default function MenuScreen({ onConnected, onSettings, onShop, onAbout, o
       // Самая частая причина — пользователь ввёл имя, которого нет в сети
       // (get_miner_address_by_wallet_name → KitError Account 205).
       if (/wallet name|miner address|account|205|not found/i.test(msg)) {
-        setError('AN Wallet с таким именем не найден. Установи AN Wallet, зарегистрируй имя и введи его точно.');
+        setError(t('menu.err_not_found'));
       } else if (/wasm|fetch|network|load|http|abort/i.test(msg)) {
         // Сбой загрузки движка (плохая сеть/таймаут). Кнопка остаётся —
         // повторное нажатие = ретрай (initBeeEngine докачает с нуля).
@@ -74,7 +74,7 @@ export default function MenuScreen({ onConnected, onSettings, onShop, onAbout, o
       hapticNotification('success');
       onConnected(state);
     } catch {
-      setError('Подтверждение не получено. Убедись что открыл AN Wallet и подтвердил.');
+      setError(t('menu.err_not_confirmed'));
       hapticNotification('error');
     } finally {
       setWaitingConfirm(false);
@@ -157,7 +157,7 @@ export default function MenuScreen({ onConnected, onSettings, onShop, onAbout, o
           </button>
           <button className="menu-tile" onClick={handleTile(onAchievements)}>
             <TrophyIcon />
-            <div className="menu-tile-title">Награды</div>
+            <div className="menu-tile-title">{t('menu.rewards')}</div>
           </button>
           <button className="menu-tile" onClick={handleTile(onAbout)}>
             <InfoIcon />
@@ -177,7 +177,7 @@ export default function MenuScreen({ onConnected, onSettings, onShop, onAbout, o
           </button>
         ) : pendingState?.pendingDeepLink ? (
           <div className="menu-wallet-connect">
-            <p className="menu-auth-hint">Открой AN Wallet и подтверди подключение:</p>
+            <p className="menu-auth-hint">{t('menu.auth_hint')}</p>
             <button
               className="menu-cta menu-cta-deeplink"
               onClick={() => {
@@ -190,24 +190,24 @@ export default function MenuScreen({ onConnected, onSettings, onShop, onAbout, o
                 else window.open(url, '_blank', 'noopener');
               }}
             >
-              <WalletIcon /> Открыть AN Wallet
+              <WalletIcon /> {t('menu.open_wallet')}
             </button>
             <button
               className={`menu-cta menu-cta-secondary ${waitingConfirm ? 'connecting' : ''}`}
               onClick={handleConfirmAuth}
               disabled={waitingConfirm}
             >
-              {waitingConfirm ? <><span className="spinner" />Проверяем...</> : <>✓ Я подтвердил в кошельке</>}
+              {waitingConfirm ? <><span className="spinner" />{t('menu.checking')}</> : <>{t('menu.confirmed_btn')}</>}
             </button>
             {error && <p className="menu-error">{error}</p>}
           </div>
         ) : (
           <div className="menu-wallet-connect">
-            <p className="menu-auth-hint">Нужен установленный AN Wallet с зарегистрированным именем. Введи это имя:</p>
+            <p className="menu-auth-hint">{t('menu.need_wallet_hint')}</p>
             <input
               className="menu-wallet-input"
               type="text"
-              placeholder="Имя AN Wallet (например: alice)"
+              placeholder={t('menu.name_placeholder')}
               value={walletName}
               onChange={e => setWalletName(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleConnect()}
