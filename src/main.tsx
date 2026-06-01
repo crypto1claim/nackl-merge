@@ -2,8 +2,25 @@ import './bootstrap'; // ДОЛЖЕН быть первым — делает о�
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
+import ErrorBoundary from './ErrorBoundary';
 import './styles.css';
 import { tg } from './telegram';
+
+// ============================================================
+// Глобальная сеть безопасности: ловим async-ошибки, которые НЕ
+// перехватывает React ErrorBoundary (физический цикл matter.js,
+// висячие промисы, ошибки в обработчиках событий). Без этого они
+// уходят в пустоту. Здесь — просто лог (для attached-консоли /
+// будущей телеметрии), без падения приложения.
+// ============================================================
+window.addEventListener('error', (e) => {
+  // eslint-disable-next-line no-console
+  console.error('[global error]', e.error ?? e.message);
+});
+window.addEventListener('unhandledrejection', (e) => {
+  // eslint-disable-next-line no-console
+  console.error('[unhandled rejection]', e.reason);
+});
 
 // ============================================================
 // Telegram Mini App инициализация
@@ -38,6 +55,8 @@ document.addEventListener('pointerdown', (e) => {
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <App />
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
   </React.StrictMode>
 );
