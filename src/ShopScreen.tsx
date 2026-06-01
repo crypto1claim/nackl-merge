@@ -59,7 +59,7 @@ export default function ShopScreen({ onBack }: Props) {
         <button
           className={`shop-tab ${tab === 'boosters' ? 'active' : ''}`}
           onClick={() => { Sound.select(); setTab('boosters'); }}
-        >Бустеры</button>
+        >{t('shop.tab_boosters')}</button>
       </div>
 
       <div className="shop-content">
@@ -301,7 +301,7 @@ function BoostersTab({ onChange }: { onChange: () => void }) {
   return (
     <div className="shop-list">
       <div className="boosters-hint">
-        Бустеры активируются прямо в игре — кнопки появляются в HUD.
+        {t('shop.boosters_hint')}
       </div>
       {POWERUPS.map((pu) => {
         const owned = getPowerupCount(pu.id);
@@ -332,7 +332,7 @@ function BoostersTab({ onChange }: { onChange: () => void }) {
                   onClick={canAfford ? handleBuy : undefined}
                   disabled={!canAfford}
                 >
-                  {canAfford ? 'Купить' : `Не хватает ${formatMRG(pu.price - balance)}`}
+                  {canAfford ? t('shop.buy') : `${t('shop.need_more')} ${formatMRG(pu.price - balance)}`}
                 </button>
               </div>
             </div>

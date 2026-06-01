@@ -147,7 +147,11 @@ export default function App() {
     engineRef.current = engine;
     engine.start();
     return () => engine.stop();
-  }, [wallet.connected, wallet.address, inGame]);
+    // wallet.address намеренно НЕ в зависимостях: иначе любое обновление
+    // адреса пересоздавало движок и сбрасывало партию. Адрес для sendData
+    // берётся по замыканию — он стабилен в рамках сессии.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wallet.connected, inGame]);
 
   // === BOMB CONTROLS: Space на десктопе + Shake на мобиле ===
   useEffect(() => {
@@ -192,11 +196,14 @@ export default function App() {
       }
     };
     // Запрашиваем разрешение на iOS 13+
+    let cancelled = false;  // эффект размонтирован до резолва промиса?
     const DM: any = (window as any).DeviceMotionEvent;
     if (DM && typeof DM.requestPermission === 'function') {
       DM.requestPermission()
         .then((res: string) => {
-          if (res === 'granted') window.addEventListener('devicemotion', onMotion);
+          // Если эффект уже размонтирован — НЕ навешиваем listener, иначе он
+          // повиснет навсегда (cleanup уже отработал) и будет дёргать старый движок.
+          if (!cancelled && res === 'granted') window.addEventListener('devicemotion', onMotion);
         })
         .catch(() => {});
     } else {
@@ -204,6 +211,7 @@ export default function App() {
     }
 
     return () => {
+      cancelled = true;
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('keyup', onKeyUp);
       window.removeEventListener('devicemotion', onMotion);

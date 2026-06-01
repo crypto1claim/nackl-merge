@@ -82,6 +82,7 @@ export async function authorize(walletName: string): Promise<{ deepLink: string 
 
   const stored = loadKeys(walletName);
   if (stored) {
+    try { miner?.free(); } catch { /* */ }  // освобождаем прежний WASM-Miner перед пересозданием
     miner = await Miner.new(ENDPOINTS, APP_ID, stored.minerAddress, stored.publicKey, stored.secretKey);
     return { deepLink: null, alreadyAuthorized: true };
   }
@@ -107,6 +108,7 @@ export async function waitForAuthorization(walletName: string, maxAttempts = 30)
     interval_ms: 1000,
   });
 
+  try { miner?.free(); } catch { /* */ }  // освобождаем прежний WASM-Miner перед пересозданием
   miner = await Miner.new(ENDPOINTS, APP_ID, pendingMinerAddress, pendingKeys.public, pendingKeys.secret);
   miner.add_tap(0, 0);
 

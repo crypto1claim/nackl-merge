@@ -129,6 +129,16 @@ export class GameEngine {
   private rafId = 0;
   private running = false;
   private spritesReady = false;
+  // Эпоха партии: увеличивается в restart()/stop(). Отложенные коллбэки
+  // (setTimeout/queueMicrotask детонаций и слияний) запоминают свою эпоху и
+  // отменяются, если партию перезапустили/закрыли — иначе они начисляли очки
+  // и рисовали «фантомные» взрывы в НОВОЙ партии (эксплойт фарма MRG).
+  private epoch = 0;
+  // Защита от двойной детонации Shake при быстрых повторных тапах.
+  private detonating = false;
+  // Контроллер для снятия pointer-листенеров канваса в stop() (иначе они
+  // копились на одном canvas при каждой новой партии).
+  private pointerAbort: AbortController | null = null;
   // Масштаб логических координат → backing store (с учётом capped DPR)
   private scaleX = 1;
   private scaleY = 1;
@@ -300,7 +310,9 @@ export class GameEngine {
    * После взрыва — заряд тратится, used++.
    */
   detonateBomb() {
-    if (this.bombReadyCharges <= 0 || this.paused || this.gameOver) return;
+    if (this.bombReadyCharges <= 0 || this.paused || this.gameOver || this.detonating) return;
+    this.detonating = true;          // блокируем повторный тап до конца волны
+    const myEpoch = this.epoch;
 
     // Собираем все монеты-тела на поле. Тело-монета имеет fruitData
     const fruitBodies: Matter.Body[] = [];
@@ -361,7 +373,7 @@ export class GameEngine {
       const delay = Math.min(800, dist * 1.8);
 
       setTimeout(() => {
-        if (!this.world) return;
+        if (myEpoch !== this.epoch || !this.running) return;  // партия сменилась — не трогаем новую
         const x = body.position.x;
         const y = body.position.y;
         // Большой взрыв на месте монеты
@@ -407,6 +419,8 @@ export class GameEngine {
     this.comboCount = 0;
     this.emitBombState();
     Achievements.onShakeUsed(this.bombUsedThisGame);
+    // Снимаем защиту от повторной детонации после завершения волны (~800мс).
+    setTimeout(() => { if (myEpoch === this.epoch) this.detonating = false; }, 850);
   }
 
   private initPhysics() {
@@ -590,7 +604,11 @@ export class GameEngine {
             // Через 1.5 сек после слияния — пышный взрыв всех монет на поле.
             // Игроку даётся возможность увидеть свою победу (NACKL появилась),
             // потом банка очищается с большим бонусом, и игра продолжается.
+            // epoch-guard: если за 1.5с партию перезапустили/закрыли — НЕ
+            // детонируем (иначе бонус старой партии начислялся бы в новую).
+            const detonateEpoch = this.epoch;
             setTimeout(() => {
+              if (detonateEpoch !== this.epoch || !this.running) return;
               this.detonateFinal();
             }, 1500);
           } else {
@@ -614,7 +632,8 @@ export class GameEngine {
    * После — игра продолжается с пустой банкой и большим бонусом.
    */
   private detonateFinal() {
-    if (this.paused || this.gameOver) return;
+    if (this.paused || this.gameOver || !this.running) return;
+    const myEpoch = this.epoch;
     const fruitBodies: Matter.Body[] = [];
     for (const body of Matter.Composite.allBodies(this.world)) {
       const fd = (body as any).fruitData as FruitData | undefined;
@@ -632,7 +651,7 @@ export class GameEngine {
       fd.merged = true;
       const delay = i * 35;
       setTimeout(() => {
-        if (!this.world) return;
+        if (myEpoch !== this.epoch || !this.running) return;
         const x = body.position.x;
         const y = body.position.y;
         this.particles.burst(x, y, def.glow, 32, 6);
@@ -682,6 +701,10 @@ export class GameEngine {
   }
 
   private attachPointerHandlers() {
+    // signal позволяет снять все эти листенеры одним abort() в stop() —
+    // иначе при каждой новой партии они копились на одном и том же canvas.
+    this.pointerAbort = new AbortController();
+    const signal = this.pointerAbort.signal;
     const toLogicalX = (clientX: number) => {
       const rect = this.canvas.getBoundingClientRect();
       return ((clientX - rect.left) / rect.width) * W;
@@ -691,19 +714,19 @@ export class GameEngine {
       this.canvas.setPointerCapture(e.pointerId);
       this.pointerX = toLogicalX(e.clientX);
       this.needsRender = true;
-    });
+    }, { signal });
     this.canvas.addEventListener('pointermove', (e) => {
       if (this.gameOver || this.paused) return;
       if (this.pointerX !== null) { this.pointerX = toLogicalX(e.clientX); this.needsRender = true; }
-    });
+    }, { signal });
     const release = () => {
       if (this.gameOver || this.paused) return;
       if (this.aiming) this.dropAiming();
       this.pointerX = null;
       this.needsRender = true;
     };
-    this.canvas.addEventListener('pointerup', release);
-    this.canvas.addEventListener('pointercancel', release);
+    this.canvas.addEventListener('pointerup', release, { signal });
+    this.canvas.addEventListener('pointercancel', release, { signal });
   }
 
   private dropAiming() {
@@ -726,13 +749,18 @@ export class GameEngine {
 
   stop() {
     this.running = false;
+    this.epoch++;            // отсекаем хвосты отложенных коллбэков
+    this.detonating = false;
     cancelAnimationFrame(this.rafId);
     this.resizeObserver.disconnect();
+    this.pointerAbort?.abort();  // снять pointer-листенеры с канваса
     Matter.World.clear(this.world, false);
     Matter.Engine.clear(this.engine);
   }
 
   restart() {
+    this.epoch++;            // новая партия — старые таймеры/микрозадачи недействительны
+    this.detonating = false;
     Matter.World.clear(this.world, false);
     Matter.Engine.clear(this.engine);
     this.initPhysics();

@@ -4547,17 +4547,19 @@ button:active:not(.toggle):not(.lang-btn):not(.modal-close)::after {
   inset: 0;
   pointer-events: none;
   z-index: 200;
+  /* Приглушено: раньше заливало весь экран ярко-оранжевым (peak opacity 1)
+     и в момент взрыва не было видно поля. Снижены альфы и пиковая прозрачность. */
   background: radial-gradient(circle at center,
-    rgba(255, 220, 100, 0.85) 0%,
-    rgba(255, 120, 40, 0.6) 30%,
-    rgba(255, 60, 20, 0.3) 60%,
+    rgba(255, 220, 100, 0.5) 0%,
+    rgba(255, 120, 40, 0.32) 30%,
+    rgba(255, 60, 20, 0.15) 60%,
     transparent 100%);
-  animation: shake-flash 0.7s ease-out forwards;
+  animation: shake-flash 0.6s ease-out forwards;
   mix-blend-mode: screen;
 }
 @keyframes shake-flash {
   0%   { opacity: 0; transform: scale(0.5); }
-  20%  { opacity: 1; transform: scale(1); }
+  20%  { opacity: 0.55; transform: scale(1); }
   100% { opacity: 0; transform: scale(2); }
 }
 
@@ -5108,7 +5110,9 @@ button:active:not(.toggle):not(.lang-btn):not(.modal-close)::after {
   border: 1.5px solid rgba(255,255,255,0.15);
   background: rgba(255,255,255,0.07);
   color: var(--color-text, #fff);
-  font-size: 15px;
+  /* 16px ОБЯЗАТЕЛЬНО: при меньшем размере iOS Safari/Telegram авто-зумит
+     страницу при фокусе на поле — экран дёргается прямо при подключении. */
+  font-size: 16px;
   font-family: inherit;
   outline: none;
   transition: border-color 0.2s;
