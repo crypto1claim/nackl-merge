@@ -14,6 +14,7 @@ import {
   COIN_SET_DEFAULT, COIN_SET_ALT, getVariant, setVariant, type CoinVariant,
 } from './coin_sets';
 import { isOwned, buyItem, getPrice, type ItemId } from './shop';
+import { track } from './analytics';
 import { getBalance, formatMRG } from './currency';
 import { POWERUPS, buy as buyPowerup, getCount as getPowerupCount } from './powerups';
 
@@ -95,6 +96,7 @@ function ThemesTab({ onChange }: { onChange: () => void }) {
               if (buyItem(itemId)) {
                 Sound.purchase();
                 hapticNotification('success');
+                track('theme_purchase', { theme: theme.id, price });
                 onChange();
               } else {
                 Sound.click();

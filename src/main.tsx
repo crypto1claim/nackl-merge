@@ -1,25 +1,33 @@
 import './bootstrap'; // ДОЛЖЕН быть первым — делает одноразовый ресет до всех модулей
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import { inject } from '@vercel/analytics';
 import App from './App';
 import ErrorBoundary from './ErrorBoundary';
 import './styles.css';
 import { tg } from './telegram';
+import { track } from './analytics';
+
+// Подключаем скрипт Vercel Analytics (нужно ещё включить Analytics в
+// дашборде Vercel) и отмечаем открытие игры.
+inject();
+track('app_open');
 
 // ============================================================
 // Глобальная сеть безопасности: ловим async-ошибки, которые НЕ
 // перехватывает React ErrorBoundary (физический цикл matter.js,
 // висячие промисы, ошибки в обработчиках событий). Без этого они
-// уходят в пустоту. Здесь — просто лог (для attached-консоли /
-// будущей телеметрии), без падения приложения.
+// уходят в пустоту. Логируем + шлём в аналитику, без падения приложения.
 // ============================================================
 window.addEventListener('error', (e) => {
   // eslint-disable-next-line no-console
   console.error('[global error]', e.error ?? e.message);
+  track('app_error', { where: 'global', message: String(e.message ?? e.error).slice(0, 200) });
 });
 window.addEventListener('unhandledrejection', (e) => {
   // eslint-disable-next-line no-console
   console.error('[unhandled rejection]', e.reason);
+  track('app_error', { where: 'promise', message: String(e.reason).slice(0, 200) });
 });
 
 // ============================================================

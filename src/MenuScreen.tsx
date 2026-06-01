@@ -6,6 +6,7 @@ import { COIN_SET_DEFAULT, COIN_SET_ALT } from './coin_sets';
 import { Sound } from './sound';
 import ThemeDecor from './ThemeDecor';
 import { formatMRG } from './currency';
+import { track } from './analytics';
 
 interface Props {
   onConnected: (state: WalletState) => void;
@@ -34,11 +35,13 @@ export default function MenuScreen({ onConnected, onSettings, onShop, onAbout, o
     setWasmProgress(0);
     Sound.click();
     hapticImpact('medium');
+    track('wallet_connect_start');
     try {
       const state = await connectWallet(walletName.trim(), (pct) => setWasmProgress(pct));
       if (state.minerReady) {
         Sound.fanfare();
         hapticNotification('success');
+        track('wallet_connect_success');
         onConnected(state);
       } else {
         setPendingState(state);
@@ -50,12 +53,15 @@ export default function MenuScreen({ onConnected, onSettings, onShop, onAbout, o
       // (get_miner_address_by_wallet_name → KitError Account 205).
       if (/wallet name|miner address|account|205|not found/i.test(msg)) {
         setError(t('menu.err_not_found'));
+        track('wallet_connect_fail', { reason: 'name_not_found' });
       } else if (/wasm|fetch|network|load|http|abort/i.test(msg)) {
         // Сбой загрузки движка (плохая сеть/таймаут). Кнопка остаётся —
         // повторное нажатие = ретрай (initBeeEngine докачает с нуля).
         setError(t('menu.error_engine'));
+        track('wallet_engine_load_fail');
       } else {
         setError(t('menu.error'));
+        track('wallet_connect_fail', { reason: 'other' });
       }
       hapticNotification('error');
       setConnecting(false);
@@ -72,10 +78,12 @@ export default function MenuScreen({ onConnected, onSettings, onShop, onAbout, o
       const state = await confirmAuthorization(pendingState.address);
       Sound.fanfare();
       hapticNotification('success');
+      track('wallet_connect_success');
       onConnected(state);
     } catch {
       setError(t('menu.err_not_confirmed'));
       hapticNotification('error');
+      track('wallet_connect_fail', { reason: 'not_confirmed' });
     } finally {
       setWaitingConfirm(false);
     }

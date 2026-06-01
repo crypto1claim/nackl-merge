@@ -14,6 +14,7 @@ import { applyTheme, subscribeTheme } from './themes';
 import { Sound } from './sound';
 import { FRUITS } from './fruits';
 import { earnMRG, recordBest, getBalance, getBest, subscribeBalance, formatMRG } from './currency';
+import { track } from './analytics';
 import { subscribeCoinSet } from './coin_sets';
 import { claimDailyBonus } from './dailyBonus';
 import DailyBonusModal from './DailyBonusModal';
@@ -134,6 +135,7 @@ export default function App() {
           setNewRecord(false);
         }
         setGameOver(true);
+        track('game_over', { earned });
         try {
           (tg as any)?.sendData?.(JSON.stringify({
             type: 'game_result', game: 'acki_merge',
@@ -254,6 +256,7 @@ export default function App() {
     setGameOver(false);
     setSessionEarned(0);
     setBombState({ charge: 0, ready: 0, used: 0, maxUses: 3 });
+    track('game_start');
     if (!hasSeenTutorial()) setShowTutorial(true);
   };
 
@@ -274,6 +277,7 @@ export default function App() {
             onConnected={(state) => {
               setWallet(state);
               setInGame(true);
+              track('game_start');
               // Если игрок впервые входит в игру — показать туториал
               if (!hasSeenTutorial()) setShowTutorial(true);
             }}

@@ -12,6 +12,7 @@
 // ============================================================
 
 import { Component, type ErrorInfo, type ReactNode } from 'react';
+import { track } from './analytics';
 
 interface Props {
   children: ReactNode;
@@ -29,10 +30,9 @@ export default class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    // Лог в консоль (видно в attached-консоли / будущей телеметрии).
-    // Намеренно не используем сторонние модули — они могли и упасть.
     // eslint-disable-next-line no-console
     console.error('[ErrorBoundary]', error, info?.componentStack);
+    track('app_error', { where: 'render', message: String(error?.message ?? error).slice(0, 200) });
   }
 
   private handleReload = () => {

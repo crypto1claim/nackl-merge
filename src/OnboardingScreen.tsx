@@ -19,6 +19,7 @@ import { tg, hapticNotification, hapticSelection } from './telegram';
 import { Sound } from './sound';
 import { MINING_FARM_URL } from './config';
 import { t, getLang, setLang, type Lang } from './i18n';
+import { track } from './analytics';
 
 const STORAGE_KEY = 'nackl_merge_onboarding_seen';
 
@@ -51,6 +52,7 @@ export default function OnboardingScreen({ onProceed }: Props) {
   const handleHaveWallet = () => {
     Sound.unlock();
     hapticNotification('success');
+    track('onboarding_have_wallet');
     markSeen();
     onProceed();
   };
@@ -58,6 +60,7 @@ export default function OnboardingScreen({ onProceed }: Props) {
   const handleNeedWallet = () => {
     Sound.unlock();
     hapticNotification('warning');
+    track('onboarding_need_wallet');
     // Открываем ферму. t.ackinacki.com — это внешний URL (не t.me),
     // используем openLink. Если внутри Telegram — он откроется во встроенном браузере.
     if (tg?.openLink) {
