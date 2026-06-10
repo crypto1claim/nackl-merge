@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import { connectWallet, confirmAuthorization, type WalletState } from './wallet';
+import { useEffect, useState } from 'react';
+import QRCode from 'qrcode';
+import { connectWallet, confirmAuthorization, cancelPendingConnect, type WalletState } from './wallet';
 import { hapticSelection, hapticImpact, hapticNotification, tg } from './telegram';
 import { t } from './i18n';
 import { COIN_SET_DEFAULT, COIN_SET_ALT } from './coin_sets';
@@ -16,17 +17,75 @@ interface Props {
   onAchievements: () => void;
   onPlay: () => void;
   walletConnected: boolean;
+  /** Сохранённое состояние кошелька — для восстановления экрана
+      «подтверди в кошельке» после перезагрузки страницы. */
+  storedWallet: WalletState;
   balance: number;
 }
 
-export default function MenuScreen({ onConnected, onSettings, onShop, onAbout, onAchievements, onPlay, walletConnected, balance }: Props) {
+export default function MenuScreen({ onConnected, onSettings, onShop, onAbout, onAchievements, onPlay, walletConnected, storedWallet, balance }: Props) {
   const [connecting, setConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [walletName, setWalletName] = useState('');
-  const [pendingState, setPendingState] = useState<WalletState | null>(null);
+  const [pendingState, setPendingState] = useState<WalletState | null>(() =>
+    // Перезагрузка на этапе подтверждения: возвращаем игрока на тот же экран
+    // с тем же диплинком (ключи к нему персистятся в beeEngine).
+    storedWallet.pendingDeepLink && !storedWallet.minerReady ? storedWallet : null,
+  );
   const [waitingConfirm, setWaitingConfirm] = useState(false);
   // Прогресс загрузки WASM-движка (~7.7МБ): null = ещё не грузим / уже готов.
   const [wasmProgress, setWasmProgress] = useState<number | null>(null);
+  // Фолбэки для случая, когда AN Wallet открывается по диплинку, но не
+  // показывает окно подтверждения (баг обработки universal link на iOS):
+  // копирование ссылки + QR-код (штатный путь подключения по докам Acki Nacki).
+  const [copied, setCopied] = useState(false);
+  const [showQr, setShowQr] = useState(false);
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    const url = pendingState?.pendingDeepLink;
+    if (!showQr || !url) return;
+    let cancelled = false;
+    QRCode.toDataURL(url, { width: 220, margin: 1, errorCorrectionLevel: 'M' })
+      .then((data) => { if (!cancelled) setQrDataUrl(data); })
+      .catch(() => { /* QR не критичен — остаются кнопки */ });
+    return () => { cancelled = true; };
+  }, [showQr, pendingState?.pendingDeepLink]);
+
+  const handleCopyLink = async () => {
+    const url = pendingState?.pendingDeepLink;
+    if (!url) return;
+    Sound.click();
+    hapticSelection();
+    try {
+      await navigator.clipboard.writeText(url);
+    } catch {
+      // Telegram-webview может не дать clipboard API — фолбэк через textarea
+      const ta = document.createElement('textarea');
+      ta.value = url;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); } catch { /* */ }
+      document.body.removeChild(ta);
+    }
+    setCopied(true);
+    track('wallet_link_copied');
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  // Назад к вводу имени (опечатка / передумал). Ключи успешных
+  // подключений не трогаем — только незавершённую авторизацию.
+  const handleCancelPending = () => {
+    Sound.select();
+    hapticSelection();
+    cancelPendingConnect();
+    setPendingState(null);
+    setShowQr(false);
+    setQrDataUrl(null);
+    setError(null);
+  };
 
   const handleConnect = async () => {
     if (!walletName.trim()) { setError(t('menu.err_enter_name')); return; }
@@ -80,10 +139,19 @@ export default function MenuScreen({ onConnected, onSettings, onShop, onAbout, o
       hapticNotification('success');
       track('wallet_connect_success');
       onConnected(state);
-    } catch {
-      setError(t('menu.err_not_confirmed'));
+    } catch (e) {
+      const msg = String((e as any)?.message ?? e);
+      if (/authorize\(\)/.test(msg)) {
+        // Ключи незавершённой авторизации потеряны (очищено хранилище) —
+        // диплинк мёртв, возвращаем к вводу имени для новой попытки.
+        handleCancelPending();
+        setError(t('menu.error'));
+        track('wallet_connect_fail', { reason: 'pending_lost' });
+      } else {
+        setError(t('menu.err_not_confirmed'));
+        track('wallet_connect_fail', { reason: 'not_confirmed' });
+      }
       hapticNotification('error');
-      track('wallet_connect_fail', { reason: 'not_confirmed' });
     } finally {
       setWaitingConfirm(false);
     }
@@ -186,26 +254,49 @@ export default function MenuScreen({ onConnected, onSettings, onShop, onAbout, o
         ) : pendingState?.pendingDeepLink ? (
           <div className="menu-wallet-connect">
             <p className="menu-auth-hint">{t('menu.auth_hint')}</p>
-            <button
+            {/* Настоящий <a> вместо window.open: programmatic-открытие universal
+                link на iOS ненадёжно (кошелёк открывается без payload). Внутри
+                Telegram якорь не работает — там по-прежнему нативный openLink. */}
+            <a
               className="menu-cta menu-cta-deeplink"
-              onClick={() => {
-                const url = pendingState.pendingDeepLink!;
+              href={pendingState.pendingDeepLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => {
                 Sound.click();
                 hapticImpact('medium');
-                // Внутри Telegram обычный target="_blank" часто не открывает внешнюю
-                // ссылку — нужно дёргать нативный openLink. Фолбэк на window.open для браузера.
-                if (tg?.openLink) tg.openLink(url);
-                else window.open(url, '_blank', 'noopener');
+                if (tg?.openLink) {
+                  e.preventDefault();
+                  tg.openLink(pendingState.pendingDeepLink!);
+                }
               }}
             >
               <WalletIcon /> {t('menu.open_wallet')}
-            </button>
+            </a>
             <button
               className={`menu-cta menu-cta-secondary ${waitingConfirm ? 'connecting' : ''}`}
               onClick={handleConfirmAuth}
               disabled={waitingConfirm}
             >
               {waitingConfirm ? <><span className="spinner" />{t('menu.checking')}</> : <>{t('menu.confirmed_btn')}</>}
+            </button>
+            <button className="menu-cta menu-cta-secondary" onClick={handleCopyLink}>
+              {copied ? t('menu.copied') : t('menu.copy_link')}
+            </button>
+            {!showQr ? (
+              <button className="menu-qr-toggle" onClick={() => { Sound.select(); setShowQr(true); track('wallet_qr_shown'); }}>
+                {t('menu.qr_toggle')}
+              </button>
+            ) : (
+              <div className="menu-qr-block">
+                {qrDataUrl
+                  ? <div className="menu-qr-box"><img src={qrDataUrl} alt="QR" width={180} height={180} /></div>
+                  : <span className="spinner" />}
+                <p className="menu-auth-hint">{t('menu.qr_hint')}</p>
+              </div>
+            )}
+            <button className="menu-qr-toggle" onClick={handleCancelPending} disabled={waitingConfirm}>
+              {t('menu.change_name')}
             </button>
             {error && <p className="menu-error">{error}</p>}
           </div>

@@ -8,7 +8,7 @@ import ShopScreen from './ShopScreen';
 import AboutScreen from './AboutScreen';
 import Tutorial, { hasSeenTutorial } from './Tutorial';
 import OnboardingScreen, { hasSeenOnboarding } from './OnboardingScreen';
-import { getStoredWallet, shortAddress, type WalletState } from './wallet';
+import { getStoredWallet, resumeWallet, shortAddress, type WalletState } from './wallet';
 import { t, subscribeLang } from './i18n';
 import { applyTheme, subscribeTheme } from './themes';
 import { Sound } from './sound';
@@ -46,6 +46,20 @@ export default function App() {
   // Ежедневный бонус: показываем модалку при первом заходе за день.
   // Не блокируем онбординг — новый пользователь сначала пройдёт его.
   const [dailyBonus, setDailyBonus] = useState<{amount: number; streak: number} | null>(null);
+
+  // После перезагрузки страницы WASM-майнер потерян, хотя localStorage помнит
+  // «подключено» — тихо пересоздаём его из сохранённых ключей, иначе майнинг
+  // молча не работает до ручного переподключения.
+  useEffect(() => {
+    const stored = getStoredWallet();
+    if (stored.connected && stored.minerReady && stored.address) {
+      resumeWallet().catch(() => {
+        // Сеть/WASM недоступны — игра остаётся играбельной, майнинг
+        // поднимется при следующем успешном запуске.
+        track('wallet_resume_fail');
+      });
+    }
+  }, []);
 
   useEffect(() => {
     if (showOnboarding) return; // ждём окончания онбординга
@@ -294,7 +308,11 @@ export default function App() {
             onAbout={() => setShowAbout(true)}
             onAchievements={() => setShowAchievements(true)}
             balance={balance}
-            walletConnected={wallet.connected}
+            // «Подключён» для меню = авторизация ЗАВЕРШЕНА. Иначе после
+            // перезагрузки на этапе «подтверди в кошельке» игрок видел
+            // «Играть», а майнинг никогда не запускался.
+            walletConnected={wallet.connected && wallet.minerReady}
+            storedWallet={wallet}
             onPlay={handlePlayClick}
           />
         )}

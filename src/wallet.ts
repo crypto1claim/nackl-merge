@@ -5,6 +5,7 @@
 import {
   initBeeEngine, authorize, waitForAuthorization,
   startMining, disconnectBee, isMinerReady,
+  restoreMiner, clearPendingAuth,
 } from './beeEngine';
 
 export interface WalletState {
@@ -51,6 +52,31 @@ export async function confirmAuthorization(walletName: string): Promise<WalletSt
   await waitForAuthorization(walletName);
   startMining();
   const state: WalletState = { connected: true, address: walletName, minerReady: true, pendingDeepLink: null };
+  saveWallet(state);
+  return state;
+}
+
+/**
+ * Тихое восстановление майнинга после перезагрузки страницы: localStorage
+ * помнит «подключено», но WASM-Miner живёт только в памяти. Вызывается при
+ * старте приложения; не трогает состояние, если ключей нет.
+ */
+export async function resumeWallet(): Promise<boolean> {
+  const stored = getStoredWallet();
+  if (!stored.connected || !stored.minerReady || !stored.address) return false;
+  const ok = await restoreMiner(stored.address);
+  if (ok) startMining();
+  return ok;
+}
+
+/**
+ * Отмена незавершённой авторизации (этап «подтверди в кошельке») —
+ * возвращает к вводу имени. Сохранённых ключей успешных подключений не трогает.
+ */
+export function cancelPendingConnect(): WalletState {
+  const stored = getStoredWallet();
+  if (stored.address) clearPendingAuth(stored.address);
+  const state: WalletState = { connected: false, address: null, minerReady: false, pendingDeepLink: null };
   saveWallet(state);
   return state;
 }

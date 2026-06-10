@@ -25,6 +25,9 @@ export type AnalyticsEvent =
   | 'wallet_connect_success'   // кошелёк подключён, майнинг пошёл
   | 'wallet_connect_fail'      // ошибка подключения (имя не найдено и т.п.)
   | 'wallet_engine_load_fail'  // не загрузился WASM-движок (плохая сеть)
+  | 'wallet_resume_fail'       // не восстановился майнер после перезагрузки
+  | 'wallet_link_copied'       // скопировал диплинк (фолбэк подключения)
+  | 'wallet_qr_shown'          // открыл QR-код (фолбэк подключения)
   | 'game_start'               // началась партия
   | 'game_over'                // партия закончилась (props: earned)
   | 'theme_purchase'           // куплена тема (props: theme, price)
