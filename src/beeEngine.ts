@@ -37,6 +37,33 @@ function saveKeys(data: StoredKeys) {
   try { localStorage.setItem(STORAGE_PREFIX + data.walletName, JSON.stringify(data)); } catch { /* */ }
 }
 
+// Ключи незавершённой авторизации. Без персиста перезагрузка страницы на этапе
+// «открой кошелёк и подтверди» теряла секретный ключ — подтверждение в кошельке
+// уходило в пустоту, и подключение ломалось без возможности восстановления.
+interface PendingAuth {
+  publicKey: string;
+  secretKey: string;
+  minerAddress: string;
+  deepLink: string;
+}
+
+const PENDING_PREFIX = STORAGE_PREFIX + 'pending_';
+
+function loadPendingAuth(walletName: string): PendingAuth | null {
+  try {
+    const raw = localStorage.getItem(PENDING_PREFIX + walletName);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+
+function savePendingAuth(walletName: string, data: PendingAuth) {
+  try { localStorage.setItem(PENDING_PREFIX + walletName, JSON.stringify(data)); } catch { /* */ }
+}
+
+export function clearPendingAuth(walletName: string): void {
+  try { localStorage.removeItem(PENDING_PREFIX + walletName); } catch { /* */ }
+}
+
 let wasmReady = false;
 let miner: Miner | null = null;
 let pendingKeys: ResultOfGenMiningKeys | null = null;
@@ -93,28 +120,62 @@ export async function authorize(walletName: string): Promise<{ deepLink: string 
   });
 
   pendingKeys = await gen_mining_keys(APP_ID);
+  savePendingAuth(walletName, {
+    publicKey: pendingKeys.public,
+    secretKey: pendingKeys.secret,
+    minerAddress: pendingMinerAddress,
+    deepLink: pendingKeys.deep_link,
+  });
   return { deepLink: pendingKeys.deep_link, alreadyAuthorized: false };
 }
 
 export async function waitForAuthorization(walletName: string, maxAttempts = 30): Promise<void> {
-  if (!pendingKeys || !pendingMinerAddress) throw new Error('Сначала вызови authorize()');
+  // После перезагрузки страницы in-memory ключи потеряны — восстанавливаем
+  // из персиста, чтобы подтверждение в кошельке не пропало зря.
+  let publicKey = pendingKeys?.public ?? null;
+  let secretKey = pendingKeys?.secret ?? null;
+  let minerAddress = pendingMinerAddress;
+  if (!publicKey || !secretKey || !minerAddress) {
+    const saved = loadPendingAuth(walletName);
+    if (!saved) throw new Error('Сначала вызови authorize()');
+    publicKey = saved.publicKey;
+    secretKey = saved.secretKey;
+    minerAddress = saved.minerAddress;
+    if (!wasmReady) await initBeeEngine();
+  }
 
   await ensure_mining_keys_propagated({
     client_config: { network: { endpoints: ENDPOINTS } },
-    miner_address: pendingMinerAddress,
+    miner_address: minerAddress,
     app_id: APP_ID,
-    expected_owner_public: pendingKeys.public,
+    expected_owner_public: publicKey,
     max_attempts: maxAttempts,
     interval_ms: 1000,
   });
 
   try { miner?.free(); } catch { /* */ }  // освобождаем прежний WASM-Miner перед пересозданием
-  miner = await Miner.new(ENDPOINTS, APP_ID, pendingMinerAddress, pendingKeys.public, pendingKeys.secret);
+  miner = await Miner.new(ENDPOINTS, APP_ID, minerAddress, publicKey, secretKey);
   miner.add_tap(0, 0);
 
-  saveKeys({ walletName, publicKey: pendingKeys.public, secretKey: pendingKeys.secret, minerAddress: pendingMinerAddress });
+  saveKeys({ walletName, publicKey, secretKey, minerAddress });
+  clearPendingAuth(walletName);
   pendingKeys = null;
   pendingMinerAddress = null;
+}
+
+/**
+ * Пересоздаёт майнер из сохранённых ключей после перезагрузки страницы.
+ * localStorage помнит «подключено», но WASM-Miner живёт только в памяти —
+ * без этого вызова майнинг после перезагрузки молча не работал.
+ * Возвращает false, если сохранённых ключей нет (нужна полная авторизация).
+ */
+export async function restoreMiner(walletName: string): Promise<boolean> {
+  const stored = loadKeys(walletName);
+  if (!stored) return false;
+  if (!wasmReady) await initBeeEngine();
+  try { miner?.free(); } catch { /* */ }
+  miner = await Miner.new(ENDPOINTS, APP_ID, stored.minerAddress, stored.publicKey, stored.secretKey);
+  return true;
 }
 
 export function startMining(onEvent?: (msg: string) => void): void {
@@ -136,6 +197,7 @@ export function isMinerReady(): boolean {
 
 export function disconnectBee(walletName: string): void {
   try { localStorage.removeItem(STORAGE_PREFIX + walletName); } catch { /* */ }
+  clearPendingAuth(walletName);
   miner?.free();
   miner = null;
 }

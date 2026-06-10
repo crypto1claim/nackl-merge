@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
-import { connectWallet, confirmAuthorization, type WalletState } from './wallet';
+import { connectWallet, confirmAuthorization, cancelPendingConnect, type WalletState } from './wallet';
 import { hapticSelection, hapticImpact, hapticNotification, tg } from './telegram';
 import { t } from './i18n';
 import { COIN_SET_DEFAULT, COIN_SET_ALT } from './coin_sets';
@@ -17,14 +17,21 @@ interface Props {
   onAchievements: () => void;
   onPlay: () => void;
   walletConnected: boolean;
+  /** Сохранённое состояние кошелька — для восстановления экрана
+      «подтверди в кошельке» после перезагрузки страницы. */
+  storedWallet: WalletState;
   balance: number;
 }
 
-export default function MenuScreen({ onConnected, onSettings, onShop, onAbout, onAchievements, onPlay, walletConnected, balance }: Props) {
+export default function MenuScreen({ onConnected, onSettings, onShop, onAbout, onAchievements, onPlay, walletConnected, storedWallet, balance }: Props) {
   const [connecting, setConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [walletName, setWalletName] = useState('');
-  const [pendingState, setPendingState] = useState<WalletState | null>(null);
+  const [pendingState, setPendingState] = useState<WalletState | null>(() =>
+    // Перезагрузка на этапе подтверждения: возвращаем игрока на тот же экран
+    // с тем же диплинком (ключи к нему персистятся в beeEngine).
+    storedWallet.pendingDeepLink && !storedWallet.minerReady ? storedWallet : null,
+  );
   const [waitingConfirm, setWaitingConfirm] = useState(false);
   // Прогресс загрузки WASM-движка (~7.7МБ): null = ещё не грузим / уже готов.
   const [wasmProgress, setWasmProgress] = useState<number | null>(null);
@@ -64,7 +71,20 @@ export default function MenuScreen({ onConnected, onSettings, onShop, onAbout, o
       document.body.removeChild(ta);
     }
     setCopied(true);
+    track('wallet_link_copied');
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  // Назад к вводу имени (опечатка / передумал). Ключи успешных
+  // подключений не трогаем — только незавершённую авторизацию.
+  const handleCancelPending = () => {
+    Sound.select();
+    hapticSelection();
+    cancelPendingConnect();
+    setPendingState(null);
+    setShowQr(false);
+    setQrDataUrl(null);
+    setError(null);
   };
 
   const handleConnect = async () => {
@@ -119,10 +139,19 @@ export default function MenuScreen({ onConnected, onSettings, onShop, onAbout, o
       hapticNotification('success');
       track('wallet_connect_success');
       onConnected(state);
-    } catch {
-      setError(t('menu.err_not_confirmed'));
+    } catch (e) {
+      const msg = String((e as any)?.message ?? e);
+      if (/authorize\(\)/.test(msg)) {
+        // Ключи незавершённой авторизации потеряны (очищено хранилище) —
+        // диплинк мёртв, возвращаем к вводу имени для новой попытки.
+        handleCancelPending();
+        setError(t('menu.error'));
+        track('wallet_connect_fail', { reason: 'pending_lost' });
+      } else {
+        setError(t('menu.err_not_confirmed'));
+        track('wallet_connect_fail', { reason: 'not_confirmed' });
+      }
       hapticNotification('error');
-      track('wallet_connect_fail', { reason: 'not_confirmed' });
     } finally {
       setWaitingConfirm(false);
     }
@@ -255,7 +284,7 @@ export default function MenuScreen({ onConnected, onSettings, onShop, onAbout, o
               {copied ? t('menu.copied') : t('menu.copy_link')}
             </button>
             {!showQr ? (
-              <button className="menu-qr-toggle" onClick={() => { Sound.select(); setShowQr(true); }}>
+              <button className="menu-qr-toggle" onClick={() => { Sound.select(); setShowQr(true); track('wallet_qr_shown'); }}>
                 {t('menu.qr_toggle')}
               </button>
             ) : (
@@ -266,6 +295,9 @@ export default function MenuScreen({ onConnected, onSettings, onShop, onAbout, o
                 <p className="menu-auth-hint">{t('menu.qr_hint')}</p>
               </div>
             )}
+            <button className="menu-qr-toggle" onClick={handleCancelPending} disabled={waitingConfirm}>
+              {t('menu.change_name')}
+            </button>
             {error && <p className="menu-error">{error}</p>}
           </div>
         ) : (
