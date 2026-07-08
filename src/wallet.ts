@@ -1,12 +1,16 @@
 // ============================================================
-// Acki Nacki Wallet — реальная интеграция через Bee Engine SDK
+// Acki Nacki Wallet — интеграция через Bee Engine SDK v3 (BeeConnect)
+// Имя кошелька игрок больше не вводит — оно приходит от кошелька
+// в wallet_hello после подтверждения сессии.
 // ============================================================
 
 import {
-  initBeeEngine, authorize, waitForAuthorization,
-  startMining, disconnectBee, isMinerReady,
-  restoreMiner, clearPendingAuth,
+  startConnectSession, waitWalletAndSetupMining, cancelConnectSession,
+  startMining, disconnectBee, isMinerReady, restoreMiner,
+  type ConnectStage,
 } from './beeEngine';
+
+export type { ConnectStage };
 
 export interface WalletState {
   connected: boolean;
@@ -29,31 +33,31 @@ function saveWallet(state: WalletState) {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch { /* */ }
 }
 
-export async function connectWallet(
-  walletName: string,
-  onProgress?: (pct: number) => void,
-): Promise<WalletState> {
-  await initBeeEngine(onProgress);
-  const { deepLink, alreadyAuthorized } = await authorize(walletName);
-
-  if (alreadyAuthorized) {
-    startMining();
-    const state: WalletState = { connected: true, address: walletName, minerReady: true, pendingDeepLink: null };
-    saveWallet(state);
-    return state;
-  }
-
-  const state: WalletState = { connected: true, address: walletName, minerReady: false, pendingDeepLink: deepLink };
-  saveWallet(state);
-  return state;
+/**
+ * Шаг 1 подключения: создаёт сессию BeeConnect и возвращает диплинк
+ * (для кнопки «Открыть AN Wallet» и QR-кода).
+ */
+export async function startConnect(onProgress?: (pct: number) => void): Promise<string> {
+  return startConnectSession(onProgress);
 }
 
-export async function confirmAuthorization(walletName: string): Promise<WalletState> {
-  await waitForAuthorization(walletName);
+/**
+ * Шаг 2: ждёт подтверждение в кошельке, регистрирует майнинг-ключи,
+ * запускает майнинг. Состояние сохраняется ТОЛЬКО после полного успеха.
+ */
+export async function completeConnect(
+  onStage?: (stage: ConnectStage, walletName?: string) => void,
+): Promise<WalletState> {
+  const walletName = await waitWalletAndSetupMining(onStage);
   startMining();
   const state: WalletState = { connected: true, address: walletName, minerReady: true, pendingDeepLink: null };
   saveWallet(state);
   return state;
+}
+
+/** Отмена текущей попытки подключения. */
+export function cancelConnect(): void {
+  cancelConnectSession();
 }
 
 /**
@@ -67,18 +71,6 @@ export async function resumeWallet(): Promise<boolean> {
   const ok = await restoreMiner(stored.address);
   if (ok) startMining();
   return ok;
-}
-
-/**
- * Отмена незавершённой авторизации (этап «подтверди в кошельке») —
- * возвращает к вводу имени. Сохранённых ключей успешных подключений не трогает.
- */
-export function cancelPendingConnect(): WalletState {
-  const stored = getStoredWallet();
-  if (stored.address) clearPendingAuth(stored.address);
-  const state: WalletState = { connected: false, address: null, minerReady: false, pendingDeepLink: null };
-  saveWallet(state);
-  return state;
 }
 
 export function disconnectWallet(): WalletState {

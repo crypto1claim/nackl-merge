@@ -28,6 +28,7 @@ export type AnalyticsEvent =
   | 'wallet_resume_fail'       // не восстановился майнер после перезагрузки
   | 'wallet_link_copied'       // скопировал диплинк (фолбэк подключения)
   | 'wallet_qr_shown'          // открыл QR-код (фолбэк подключения)
+  | 'wallet_hello_ok'          // кошелёк подтвердил сессию (wallet_hello)
   | 'game_start'               // началась партия
   | 'game_over'                // партия закончилась (props: earned)
   | 'theme_purchase'           // куплена тема (props: theme, price)

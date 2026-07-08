@@ -308,11 +308,9 @@ export default function App() {
             onAbout={() => setShowAbout(true)}
             onAchievements={() => setShowAchievements(true)}
             balance={balance}
-            // «Подключён» для меню = авторизация ЗАВЕРШЕНА. Иначе после
-            // перезагрузки на этапе «подтверди в кошельке» игрок видел
-            // «Играть», а майнинг никогда не запускался.
+            // «Подключён» для меню = авторизация ЗАВЕРШЕНА (v3-протокол
+            // сохраняет состояние только после полного успеха).
             walletConnected={wallet.connected && wallet.minerReady}
-            storedWallet={wallet}
             onPlay={handlePlayClick}
           />
         )}
