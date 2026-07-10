@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import QRCode from 'qrcode';
 import { startConnect, completeConnect, cancelConnect, type ConnectStage, type WalletState } from './wallet';
 import { hapticSelection, hapticImpact, hapticNotification, tg } from './telegram';
@@ -31,6 +31,9 @@ export default function MenuScreen({ onConnected, onSettings, onShop, onAbout, o
   const [wasmProgress, setWasmProgress] = useState<number | null>(null);
   const [copied, setCopied] = useState(false);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+  // Защита от параллельных ожиданий: авторетрай при возврате из кошелька
+  // не должен запускать второй completeConnect поверх ещё живого первого.
+  const waitingRef = useRef(false);
 
   // QR — штатный путь подключения AN Wallet (сканер внутри кошелька),
   // показываем сразу вместе с кнопкой-диплинком.
@@ -81,27 +84,16 @@ export default function MenuScreen({ onConnected, onSettings, onShop, onAbout, o
     setError(null);
   };
 
-  const handleConnect = async () => {
-    setConnecting(true);
+  // Шаг 2 подключения: ожидание подтверждений кошелька + регистрация ключей.
+  // Вынесен отдельно, потому что вызывается повторно: iOS замораживает
+  // webview, пока игрок подтверждает в кошельке, и ожидание рвётся сетевой
+  // ошибкой — хотя кошелёк всё подтвердил. Повторный вызов продолжает с места
+  // обрыва (прогресс персистится в beeEngine) без новых окон в кошельке.
+  const awaitWallet = async () => {
+    if (waitingRef.current) return;
+    waitingRef.current = true;
     setError(null);
-    setWasmProgress(0);
-    Sound.click();
-    hapticImpact('medium');
-    track('wallet_connect_start');
-    // Различаем этапы для сообщений об ошибке: до создания сессии виноваты
-    // сеть/WASM, после — кошелёк не подтвердил (state deepLink в замыкании
-    // catch устарел, поэтому локальный флаг).
-    let sessionStarted = false;
     try {
-      // Шаг 1: сессия + диплинк (грузит WASM при первом вызове)
-      const link = await startConnect((pct) => setWasmProgress(pct));
-      sessionStarted = true;
-      setWasmProgress(null);
-      setConnecting(false);
-      setDeepLink(link);
-      setStage('waiting_hello');
-
-      // Шаг 2: ждём подтверждение в кошельке + регистрацию майнинг-ключей
       const state = await completeConnect((st) => {
         setStage(st);
         if (st === 'confirm_mining') track('wallet_hello_ok');
@@ -114,18 +106,53 @@ export default function MenuScreen({ onConnected, onSettings, onShop, onAbout, o
     } catch (e) {
       const msg = String((e as any)?.message ?? e);
       if (msg === 'cancelled') return; // игрок нажал «Отмена» — UI уже сброшен
-      if (!sessionStarted) {
-        // Сбой загрузки движка (плохая сеть/таймаут). Кнопка остаётся —
-        // повторное нажатие = ретрай (initBeeEngine докачает с нуля).
-        setError(t('menu.error_engine'));
-        track('wallet_engine_load_fail');
-      } else {
-        setError(t('menu.err_timeout'));
-        track('wallet_connect_fail', { reason: 'timeout_or_error', message: msg.slice(0, 120) });
-      }
+      // Экран подключения НЕ сбрасываем: «Проверить ещё раз» (или возврат
+      // в игру — см. visibilitychange) продолжит с того же места.
+      setError(t('menu.err_timeout'));
+      setStage(null);
+      track('wallet_connect_fail', { reason: 'timeout_or_error', message: msg.slice(0, 120) });
+      hapticNotification('error');
+    } finally {
+      waitingRef.current = false;
+    }
+  };
+
+  // Возврат из кошелька в игру: если ожидание оборвалось в фоне —
+  // продолжаем автоматически, игроку не нужно ничего нажимать.
+  useEffect(() => {
+    if (!deepLink) return;
+    const onVisible = () => {
+      if (document.visibilityState === 'visible' && !waitingRef.current) void awaitWallet();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deepLink]);
+
+  const handleConnect = async () => {
+    setConnecting(true);
+    setError(null);
+    setWasmProgress(0);
+    Sound.click();
+    hapticImpact('medium');
+    track('wallet_connect_start');
+    try {
+      // Шаг 1: сессия + диплинк (грузит WASM при первом вызове)
+      const link = await startConnect((pct) => setWasmProgress(pct));
+      setWasmProgress(null);
+      setConnecting(false);
+      setDeepLink(link);
+      setStage('waiting_hello');
+    } catch (e) {
+      // До создания сессии виноваты сеть/WASM. Кнопка остаётся —
+      // повторное нажатие = ретрай (initBeeEngine докачает с нуля).
+      setError(t('menu.error_engine'));
+      track('wallet_engine_load_fail');
       hapticNotification('error');
       resetConnectUi();
+      return;
     }
+    void awaitWallet();
   };
 
   const stageText =
@@ -266,16 +293,23 @@ export default function MenuScreen({ onConnected, onSettings, onShop, onAbout, o
               <p className="menu-auth-hint">{t('menu.qr_hint')}</p>
             </div>
             {/* Живой статус: подтверждение сессии → майнинг-ключи → он-чейн */}
-            <p className="menu-auth-hint menu-connect-status">
-              <span className="spinner" /> {stageText}
-            </p>
+            {stage && (
+              <p className="menu-auth-hint menu-connect-status">
+                <span className="spinner" /> {stageText}
+              </p>
+            )}
+            {error && <p className="menu-error">{error}</p>}
+            {error && (
+              <button className="menu-cta menu-cta-secondary" onClick={() => { Sound.click(); hapticImpact('medium'); void awaitWallet(); }}>
+                {t('menu.retry')}
+              </button>
+            )}
             <button className="menu-cta menu-cta-secondary" onClick={handleCopyLink}>
               {copied ? t('menu.copied') : t('menu.copy_link')}
             </button>
             <button className="menu-qr-toggle" onClick={handleCancelConnect}>
               {t('menu.cancel')}
             </button>
-            {error && <p className="menu-error">{error}</p>}
           </div>
         ) : (
           <div className="menu-wallet-connect">

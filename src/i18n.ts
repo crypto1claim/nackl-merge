@@ -44,7 +44,8 @@ const TRANSLATIONS = {
     'menu.stage_mining': 'Кошелёк подключён! Теперь подтверди майнинг в AN Wallet…',
     'menu.stage_propagating': 'Регистрируем ключи в сети… это может занять минуту-две',
     'menu.cancel': 'Отмена',
-    'menu.err_timeout': 'Не дождались подтверждения от кошелька. Открой AN Wallet и попробуй ещё раз.',
+    'menu.retry': 'Проверить ещё раз',
+    'menu.err_timeout': 'Не дождались ответа сети. Если ты уже подтвердил в кошельке — просто нажми «Проверить ещё раз».',
     'menu.footer': 'Powered by Acki Nacki',
     'menu.settings': 'Настройки',
 
@@ -231,7 +232,8 @@ const TRANSLATIONS = {
     'menu.stage_mining': 'Wallet connected! Now confirm mining in AN Wallet…',
     'menu.stage_propagating': 'Registering keys on-chain… this can take a minute or two',
     'menu.cancel': 'Cancel',
-    'menu.err_timeout': 'No confirmation received from the wallet. Open AN Wallet and try again.',
+    'menu.retry': 'Check again',
+    'menu.err_timeout': 'No response from the network. If you already confirmed in the wallet — just tap “Check again”.',
     'menu.footer': 'Powered by Acki Nacki',
     'menu.settings': 'Settings',
 

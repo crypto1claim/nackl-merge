@@ -6,7 +6,7 @@
 
 import {
   startConnectSession, waitWalletAndSetupMining, cancelConnectSession,
-  startMining, disconnectBee, isMinerReady, restoreMiner,
+  startMining, disconnectBee, isMinerReady, restoreMiner, resumePendingMining,
   type ConnectStage,
 } from './beeEngine';
 
@@ -71,6 +71,20 @@ export async function resumeWallet(): Promise<boolean> {
   const ok = await restoreMiner(stored.address);
   if (ok) startMining();
   return ok;
+}
+
+/**
+ * Довершение подключения, оборванного перезагрузкой страницы: игрок уже
+ * подтвердил майнинг-ключи в кошельке, осталась он-чейн проверка.
+ * null — довершать нечего (обычный старт).
+ */
+export async function resumePendingConnect(): Promise<WalletState | null> {
+  const walletName = await resumePendingMining();
+  if (!walletName) return null;
+  startMining();
+  const state: WalletState = { connected: true, address: walletName, minerReady: true, pendingDeepLink: null };
+  saveWallet(state);
+  return state;
 }
 
 export function disconnectWallet(): WalletState {

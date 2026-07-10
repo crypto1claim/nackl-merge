@@ -60,6 +60,35 @@ function saveKeys(data: StoredKeys) {
   try { localStorage.setItem(STORAGE_PREFIX + data.walletName, JSON.stringify(data)); } catch { /* */ }
 }
 
+// Прогресс регистрации майнинг-ключей персистится: iOS замораживает webview,
+// пока игрок подтверждает в кошельке, и ожидание в игре обрывается сетевой
+// ошибкой — хотя кошелёк всё подтвердил. Ключи и флаг «запрос уже отправлен»
+// позволяют продолжить с места обрыва (доп-проверка он-чейн) без новых окон
+// подтверждения в кошельке — и даже после полной перезагрузки страницы.
+interface PendingMining {
+  walletName: string;
+  publicKey: string;
+  secretKey: string;
+  requested: boolean;
+}
+
+const PENDING_MINING_KEY = STORAGE_PREFIX + 'pending_mining';
+
+function loadPendingMining(): PendingMining | null {
+  try {
+    const raw = localStorage.getItem(PENDING_MINING_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+
+function savePendingMining(p: PendingMining) {
+  try { localStorage.setItem(PENDING_MINING_KEY, JSON.stringify(p)); } catch { /* */ }
+}
+
+export function clearPendingMining(): void {
+  try { localStorage.removeItem(PENDING_MINING_KEY); } catch { /* */ }
+}
+
 let wasmReady = false;
 let miner: Miner | null = null;
 let connect: BeeConnect | null = null;
@@ -185,28 +214,43 @@ async function doWalletSetup(
     return walletName;
   }
 
-  onStage?.('confirm_mining', walletName);
-  const keys = await gen_mining_keys(APP_ID);
-  const req = await connect.request_set_mining_keys(
-    ENDPOINTS, s.sessionId, s.description, sessionState, APP_ID, keys.public,
-    30, 1000,
-  );
-  assertActive();
-  sessionState = req.updated_session_state_json || sessionState;
+  // Прошлая попытка оборвалась ПОСЛЕ отправки запроса ключей (игрок уже
+  // подтвердил его в кошельке) — не запрашиваем заново (иначе лишнее окно
+  // в кошельке), сразу переходим к проверке он-чейн регистрации.
+  const pending = loadPendingMining();
+  let publicKey: string;
+  let secretKey: string;
+  if (pending && pending.walletName === walletName && pending.requested) {
+    publicKey = pending.publicKey;
+    secretKey = pending.secretKey;
+  } else {
+    onStage?.('confirm_mining', walletName);
+    const keys = await gen_mining_keys(APP_ID);
+    publicKey = keys.public;
+    secretKey = keys.secret;
+    savePendingMining({ walletName, publicKey, secretKey, requested: false });
+    const req = await connect.request_set_mining_keys(
+      ENDPOINTS, s.sessionId, s.description, sessionState, APP_ID, publicKey,
+      30, 1000,
+    );
+    savePendingMining({ walletName, publicKey, secretKey, requested: true });
+    assertActive();
+    sessionState = req.updated_session_state_json || sessionState;
 
-  // Пуш кошельку, чтобы он сразу показал запрос (не критично при сбое).
-  try {
-    fetch(`${PUSH_API_URL}/v1/push/notify`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        profile_address: hello.wallet_address,
-        kind: 'connect_set_mining_keys',
-        request_id: crypto.randomUUID(),
-        origin_name: window.location.hostname,
-      }),
-    }).catch(() => { /* */ });
-  } catch { /* */ }
+    // Пуш кошельку, чтобы он сразу показал запрос (не критично при сбое).
+    try {
+      fetch(`${PUSH_API_URL}/v1/push/notify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          profile_address: hello.wallet_address,
+          kind: 'connect_set_mining_keys',
+          request_id: crypto.randomUUID(),
+          origin_name: window.location.hostname,
+        }),
+      }).catch(() => { /* */ });
+    } catch { /* */ }
+  }
 
   onStage?.('propagating', walletName);
   const minerAddress = await get_miner_address_by_wallet_name({
@@ -217,18 +261,52 @@ async function doWalletSetup(
     client_config: { network: { endpoints: ENDPOINTS } },
     miner_address: minerAddress,
     app_id: APP_ID,
-    expected_owner_public: keys.public,
+    expected_owner_public: publicKey,
     max_attempts: PROPAGATION_ATTEMPTS,
     interval_ms: 2000,
   });
   assertActive();
 
   try { miner?.free(); } catch { /* */ }  // освобождаем прежний WASM-Miner перед пересозданием
-  miner = await Miner.new(ENDPOINTS, APP_ID, minerAddress, keys.public, keys.secret);
+  miner = await Miner.new(ENDPOINTS, APP_ID, minerAddress, publicKey, secretKey);
   miner.add_tap(0, 0);
 
-  saveKeys({ walletName, publicKey: keys.public, secretKey: keys.secret, minerAddress });
+  saveKeys({ walletName, publicKey, secretKey, minerAddress });
+  clearPendingMining();
   return walletName;
+}
+
+/**
+ * Возобновление оборванной регистрации майнинг-ключей после перезагрузки
+ * страницы: запрос уже подтверждён игроком в кошельке, осталось дождаться
+ * он-чейн распространения и поднять майнер. null — возобновлять нечего.
+ */
+export async function resumePendingMining(): Promise<string | null> {
+  const pending = loadPendingMining();
+  if (!pending || !pending.requested) return null;
+  if (!wasmReady) await initBeeEngine();
+  const minerAddress = await get_miner_address_by_wallet_name({
+    client_config: { network: { endpoints: ENDPOINTS } },
+    wallet_name: pending.walletName,
+  });
+  await ensure_mining_keys_propagated({
+    client_config: { network: { endpoints: ENDPOINTS } },
+    miner_address: minerAddress,
+    app_id: APP_ID,
+    expected_owner_public: pending.publicKey,
+    max_attempts: 30,
+    interval_ms: 2000,
+  });
+  try { miner?.free(); } catch { /* */ }
+  miner = await Miner.new(ENDPOINTS, APP_ID, minerAddress, pending.publicKey, pending.secretKey);
+  saveKeys({
+    walletName: pending.walletName,
+    publicKey: pending.publicKey,
+    secretKey: pending.secretKey,
+    minerAddress,
+  });
+  clearPendingMining();
+  return pending.walletName;
 }
 
 /** Отмена текущей попытки подключения (результаты ожиданий игнорируются). */
@@ -271,6 +349,7 @@ export function isMinerReady(): boolean {
 
 export function disconnectBee(walletName: string): void {
   try { localStorage.removeItem(STORAGE_PREFIX + walletName); } catch { /* */ }
+  clearPendingMining();
   cancelConnectSession();
   miner?.free();
   miner = null;
