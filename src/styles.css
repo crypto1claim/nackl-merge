@@ -5125,6 +5125,17 @@ button:active:not(.toggle):not(.lang-btn):not(.modal-close)::after {
 .menu-cta-deeplink { text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 8px; }
 .menu-cta-secondary { background: rgba(255,255,255,0.1) !important; border: 1.5px solid rgba(255,255,255,0.2) !important; font-size: 14px !important; }
 .menu-error { font-size: 12px; color: #ff6b6b; text-align: center; margin: 0; }
+/* Техническая деталь ошибки подключения — для диагностики по скриншоту */
+.menu-error-detail {
+  font-size: 10px;
+  color: rgba(255,255,255,0.45);
+  font-family: ui-monospace, Menlo, monospace;
+  text-align: center;
+  margin: 0;
+  word-break: break-word;
+  user-select: text;
+  -webkit-user-select: text;
+}
 .menu-qr-toggle {
   background: none;
   border: none;

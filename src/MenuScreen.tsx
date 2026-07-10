@@ -31,6 +31,10 @@ export default function MenuScreen({ onConnected, onSettings, onShop, onAbout, o
   const [wasmProgress, setWasmProgress] = useState<number | null>(null);
   const [copied, setCopied] = useState(false);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+  // Техническая причина последней ошибки (стадия + текст исключения SDK).
+  // Показывается мелким текстом под ошибкой — без неё невозможно удалённо
+  // диагностировать, что именно не так у конкретного игрока/устройства.
+  const [errorDetail, setErrorDetail] = useState<string | null>(null);
   // Защита от параллельных ожиданий: авторетрай при возврате из кошелька
   // не должен запускать второй completeConnect поверх ещё живого первого.
   const waitingRef = useRef(false);
@@ -93,8 +97,11 @@ export default function MenuScreen({ onConnected, onSettings, onShop, onAbout, o
     if (waitingRef.current) return;
     waitingRef.current = true;
     setError(null);
+    setErrorDetail(null);
+    let lastStage: ConnectStage = 'waiting_hello';
     try {
       const state = await completeConnect((st) => {
+        lastStage = st;
         setStage(st);
         if (st === 'confirm_mining') track('wallet_hello_ok');
       });
@@ -109,8 +116,9 @@ export default function MenuScreen({ onConnected, onSettings, onShop, onAbout, o
       // Экран подключения НЕ сбрасываем: «Проверить ещё раз» (или возврат
       // в игру — см. visibilitychange) продолжит с того же места.
       setError(t('menu.err_timeout'));
+      setErrorDetail(`[${lastStage}] ${msg.slice(0, 300)}`);
       setStage(null);
-      track('wallet_connect_fail', { reason: 'timeout_or_error', message: msg.slice(0, 120) });
+      track('wallet_connect_fail', { reason: 'timeout_or_error', stage: lastStage, message: msg.slice(0, 120) });
       hapticNotification('error');
     } finally {
       waitingRef.current = false;
@@ -299,6 +307,9 @@ export default function MenuScreen({ onConnected, onSettings, onShop, onAbout, o
               </p>
             )}
             {error && <p className="menu-error">{error}</p>}
+            {errorDetail && (
+              <p className="menu-error-detail">{errorDetail}</p>
+            )}
             {error && (
               <button className="menu-cta menu-cta-secondary" onClick={() => { Sound.click(); hapticImpact('medium'); void awaitWallet(); }}>
                 {t('menu.retry')}
