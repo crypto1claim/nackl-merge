@@ -8,7 +8,7 @@ import ShopScreen from './ShopScreen';
 import AboutScreen from './AboutScreen';
 import Tutorial, { hasSeenTutorial } from './Tutorial';
 import OnboardingScreen, { hasSeenOnboarding } from './OnboardingScreen';
-import { getStoredWallet, resumeWallet, resumePendingConnect, ensureMining, shortAddress, type WalletState } from './wallet';
+import { getStoredWallet, resumeWallet, resumePendingConnect, ensureMining, subscribeMiningStatus, getMiningStatus, shortAddress, type WalletState, type MiningStatus } from './wallet';
 import { t, subscribeLang } from './i18n';
 import { applyTheme, subscribeTheme } from './themes';
 import { Sound } from './sound';
@@ -28,6 +28,9 @@ export default function App() {
   const engineRef = useRef<GameEngine | null>(null);
 
   const [wallet, setWallet] = useState<WalletState>(() => getStoredWallet());
+  // Живой статус майнинга — индикатор в HUD (точка возле имени кошелька).
+  const [miningState, setMiningState] = useState<MiningStatus>(() => getMiningStatus());
+  useEffect(() => subscribeMiningStatus(setMiningState), []);
   // sessionEarned — сколько MRG заработал в ТЕКУЩЕЙ игре. Показывается в HUD.
   const [sessionEarned, setSessionEarned] = useState(0);
   // balance — общий накопленный (между играми)
@@ -123,6 +126,12 @@ export default function App() {
     const u4 = subscribeCoinSet(() => force((n) => n + 1));
     return () => { u1(); u2(); u3(); u4(); };
   }, []);
+
+  // 15-минутная майнинг-сессия истекла посреди партии — тихо перезапускаем,
+  // чтобы слияния продолжали идти в тапы (startMining сам проверит can_start).
+  useEffect(() => {
+    if (inGame && miningState === 'idle' && wallet.minerReady) ensureMining();
+  }, [inGame, miningState, wallet.minerReady]);
 
   useEffect(() => {
     if (!comboBanner) return;
@@ -346,8 +355,8 @@ export default function App() {
       <div className="hud">
         {/* Левая группа: кошелёк + след монета + заработано */}
         <div className="hud-left">
-          <div className="hud-pill hud-pill-wallet" title={wallet.address || ''}>
-            <span className="wallet-dot" />
+          <div className="hud-pill hud-pill-wallet" title={`${wallet.address || ''} · mining: ${miningState}`}>
+            <span className={`wallet-dot wallet-dot-${miningState}`} />
             <span className="hud-pill-text">{wallet.address ? shortAddress(wallet.address) : t('hud.connected')}</span>
           </div>
           <div className="hud-pill hud-pill-next" title={t('hud.next')}>

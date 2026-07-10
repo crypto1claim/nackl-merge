@@ -89,6 +89,47 @@ export function clearPendingMining(): void {
   try { localStorage.removeItem(PENDING_MINING_KEY); } catch { /* */ }
 }
 
+// ── Живой статус майнинга (для индикатора в HUD) ──────────────
+// off    — майнер не создан (кошелёк не подключён)
+// idle   — майнер есть, но сессия майнинга не идёт (истекла/остановлена)
+// mining — сессия активна (SDK шлёт computing/submitting)
+// error  — миннер упал (SDK прислал error) — лечится ensureMining/переподключением
+export type MiningStatus = 'off' | 'idle' | 'mining' | 'error';
+
+let miningStatus: MiningStatus = 'off';
+const miningStatusSubs = new Set<(s: MiningStatus) => void>();
+
+function setMiningStatus(s: MiningStatus): void {
+  if (miningStatus === s) return;
+  miningStatus = s;
+  miningStatusSubs.forEach((cb) => { try { cb(s); } catch { /* */ } });
+}
+
+/** Подписка на статус майнинга. Сразу вызывает cb с текущим значением. */
+export function subscribeMiningStatus(cb: (s: MiningStatus) => void): () => void {
+  miningStatusSubs.add(cb);
+  try { cb(miningStatus); } catch { /* */ }
+  return () => { miningStatusSubs.delete(cb); };
+}
+
+export function getMiningStatus(): MiningStatus {
+  return miningStatus;
+}
+
+// Сообщения миннера — JSON вида {action, data: {status}, error}
+// (формат из официального примера miner-react).
+function handleMinerMessage(msg: string): void {
+  try {
+    const payload = JSON.parse(msg) as { action?: string; data?: { status?: string } | null; error?: string | null };
+    if (payload.error) { setMiningStatus('error'); return; }
+    const status = payload.data?.status;
+    if (payload.action === 'status_updated' && status) {
+      if (status === 'computing' || status === 'submitting') setMiningStatus('mining');
+      else if (status === 'finished' || status === 'removed') setMiningStatus('idle');
+    }
+  } catch { /* не-JSON сообщения игнорируем */ }
+}
+
 let wasmReady = false;
 let miner: Miner | null = null;
 let connect: BeeConnect | null = null;
@@ -210,6 +251,7 @@ async function doWalletSetup(
   if (stored) {
     try { miner?.free(); } catch { /* */ }
     miner = await Miner.new(ENDPOINTS, APP_ID, stored.minerAddress, stored.publicKey, stored.secretKey);
+    setMiningStatus('idle');
     assertActive();
     return walletName;
   }
@@ -270,6 +312,7 @@ async function doWalletSetup(
   try { miner?.free(); } catch { /* */ }  // освобождаем прежний WASM-Miner перед пересозданием
   miner = await Miner.new(ENDPOINTS, APP_ID, minerAddress, publicKey, secretKey);
   miner.add_tap(0, 0);
+  setMiningStatus('idle');
 
   saveKeys({ walletName, publicKey, secretKey, minerAddress });
   clearPendingMining();
@@ -299,6 +342,7 @@ export async function resumePendingMining(): Promise<string | null> {
   });
   try { miner?.free(); } catch { /* */ }
   miner = await Miner.new(ENDPOINTS, APP_ID, minerAddress, pending.publicKey, pending.secretKey);
+  setMiningStatus('idle');
   saveKeys({
     walletName: pending.walletName,
     publicKey: pending.publicKey,
@@ -327,12 +371,17 @@ export async function restoreMiner(walletName: string): Promise<boolean> {
   if (!wasmReady) await initBeeEngine();
   try { miner?.free(); } catch { /* */ }
   miner = await Miner.new(ENDPOINTS, APP_ID, stored.minerAddress, stored.publicKey, stored.secretKey);
+  setMiningStatus('idle');
   return true;
 }
 
 export function startMining(onEvent?: (msg: string) => void): void {
   if (!miner || !miner.can_start()) return;
-  miner.start(MINING_DURATION, (msg: string) => { if (onEvent) onEvent(msg); });
+  miner.start(MINING_DURATION, (msg: string) => {
+    handleMinerMessage(msg);
+    if (onEvent) onEvent(msg);
+  });
+  setMiningStatus('mining');
 }
 
 export function addTap(x: number, y: number): void {
@@ -341,6 +390,7 @@ export function addTap(x: number, y: number): void {
 
 export function stopMining(): void {
   miner?.stop();
+  if (miner) setMiningStatus('idle');
 }
 
 export function isMinerReady(): boolean {
@@ -353,4 +403,5 @@ export function disconnectBee(walletName: string): void {
   cancelConnectSession();
   miner?.free();
   miner = null;
+  setMiningStatus('off');
 }
