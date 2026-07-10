@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import QRCode from 'qrcode';
 import { startConnect, completeConnect, cancelConnect, type ConnectStage, type WalletState } from './wallet';
 import { hapticSelection, hapticImpact, hapticNotification, tg } from './telegram';
@@ -133,6 +133,16 @@ export default function MenuScreen({ onConnected, onSettings, onShop, onAbout, o
     : stage === 'propagating' ? t('menu.stage_propagating')
     : t('menu.stage_hello');
 
+  // Пока кошелёк не подключён, в меню виден блок подключения (на этапе
+  // подтверждения — QR + статусы), и контент выше экрана. База в styles.css
+  // ставит overflow: hidden (меню должно влезать целиком), а её исключение
+  // для скролла висело на :has(.menu-wallet-input) — поле убрано при
+  // миграции на BeeConnect, и экран срезался без возможности прокрутки.
+  // `safe center`: короткий контент по центру, длинный скроллится с верха.
+  const menuScrollStyle: CSSProperties | undefined = walletConnected
+    ? undefined
+    : { overflowY: 'auto', WebkitOverflowScrolling: 'touch', alignItems: 'safe center' };
+
   const handlePlay = () => {
     Sound.click();
     hapticImpact('medium');
@@ -146,7 +156,7 @@ export default function MenuScreen({ onConnected, onSettings, onShop, onAbout, o
   };
 
   return (
-    <div className="menu-screen">
+    <div className="menu-screen" style={menuScrollStyle}>
       <ThemeDecor />
       <div className="menu-glow menu-glow-1" />
       <div className="menu-glow menu-glow-2" />
