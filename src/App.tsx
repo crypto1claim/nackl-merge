@@ -8,7 +8,7 @@ import ShopScreen from './ShopScreen';
 import AboutScreen from './AboutScreen';
 import Tutorial, { hasSeenTutorial } from './Tutorial';
 import OnboardingScreen, { hasSeenOnboarding } from './OnboardingScreen';
-import { getStoredWallet, resumeWallet, shortAddress, type WalletState } from './wallet';
+import { getStoredWallet, resumeWallet, resumePendingConnect, shortAddress, type WalletState } from './wallet';
 import { t, subscribeLang } from './i18n';
 import { applyTheme, subscribeTheme } from './themes';
 import { Sound } from './sound';
@@ -58,6 +58,18 @@ export default function App() {
         // поднимется при следующем успешном запуске.
         track('wallet_resume_fail');
       });
+    } else {
+      // Подключение оборвалось на он-чейн регистрации (iOS перезагрузил
+      // webview, пока игрок подтверждал в кошельке) — тихо доводим до конца,
+      // ключи уже подтверждены и сохранены.
+      resumePendingConnect()
+        .then((state) => {
+          if (state) {
+            setWallet(state);
+            track('wallet_connect_success');
+          }
+        })
+        .catch(() => { /* не вышло — игрок подключится заново, без лишних окон */ });
     }
   }, []);
 
