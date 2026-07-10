@@ -105,3 +105,12 @@ export function shortAddress(address: string): string {
 export function checkMinerReady(): boolean {
   return isMinerReady();
 }
+
+/**
+ * Перезапуск майнинга, если 15-минутная сессия Bee SDK закончилась.
+ * Вызывается при старте каждой партии; no-op, когда майнинг уже идёт
+ * или майнер не готов (startMining сам проверяет can_start).
+ */
+export function ensureMining(): void {
+  startMining();
+}
