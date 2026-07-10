@@ -20,6 +20,12 @@ import __wbg_init, {
   get_miner_address_by_wallet_name,
   ensure_mining_keys_propagated,
 } from '@teamgosh/bee-sdk';
+// WASM через Vite (?url): в прод-сборке получает контент-хэш в имени файла,
+// поэтому годовой immutable-кэш (vercel.json) безопасен — при апгрейде SDK
+// URL меняется сам. Руками копировать wasm в public/ больше НЕ нужно
+// (раньше файл лежал в public/ под фиксированным именем, и после апгрейда
+// SDK игроки получали из кэша старый несовместимый движок).
+import wasmUrl from '@teamgosh/bee-sdk/bee_sdk_bg.wasm?url';
 
 export const APP_ID   = '0x0000000000000000000000000000000000000000000000000000000000000018';
 // ВАЖНО: схему https:// указывать обязательно. Без неё SDK строит запрос на
@@ -78,7 +84,7 @@ export async function initBeeEngine(onProgress?: (pct: number) => void): Promise
   // При сбое стрима — фоллбэк на стандартную загрузку по URL. Если и она упадёт
   // (сеть недоступна) — ошибка уходит наверх, UI предложит повторить.
   try {
-    const resp = await fetch('/bee_sdk_bg.wasm');
+    const resp = await fetch(wasmUrl);
     if (!resp.ok || !resp.body) throw new Error(`WASM HTTP ${resp.status}`);
     const total = Number(resp.headers.get('Content-Length')) || 0;
     const reader = resp.body.getReader();
@@ -100,7 +106,7 @@ export async function initBeeEngine(onProgress?: (pct: number) => void): Promise
     for (const c of chunks) { merged.set(c, off); off += c.length; }
     await __wbg_init({ module_or_path: merged.buffer });
   } catch {
-    await __wbg_init({ module_or_path: '/bee_sdk_bg.wasm' });
+    await __wbg_init({ module_or_path: wasmUrl });
   }
   wasmReady = true;
   onProgress?.(100);
