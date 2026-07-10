@@ -108,13 +108,24 @@ button, a, [role="button"] {
   padding: 0 11px;
   flex-shrink: 0;
 }
+/* Точка у кошелька — ЖИВОЙ статус майнинга (см. MiningStatus в beeEngine):
+   зелёная пульсирующая = майнит, серая = сессия не идёт, красная = ошибка. */
 .wallet-dot {
   width: 7px; height: 7px;
-  background: #4ade80;
+  background: #9ca3af;
   border-radius: 50%;
+  flex-shrink: 0;
+}
+.wallet-dot-mining {
+  background: #4ade80;
   box-shadow: 0 0 6px #4ade80;
   animation: pulse-dot 2s ease-in-out infinite;
-  flex-shrink: 0;
+}
+.wallet-dot-idle { background: #9ca3af; }
+.wallet-dot-off { background: #6b7280; }
+.wallet-dot-error {
+  background: #f87171;
+  box-shadow: 0 0 6px #f87171;
 }
 @keyframes pulse-dot {
   0%, 100% { opacity: 1; transform: scale(1); }
