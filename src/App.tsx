@@ -8,7 +8,7 @@ import ShopScreen from './ShopScreen';
 import AboutScreen from './AboutScreen';
 import Tutorial, { hasSeenTutorial } from './Tutorial';
 import OnboardingScreen, { hasSeenOnboarding } from './OnboardingScreen';
-import { getStoredWallet, resumeWallet, resumePendingConnect, shortAddress, type WalletState } from './wallet';
+import { getStoredWallet, resumeWallet, resumePendingConnect, ensureMining, shortAddress, type WalletState } from './wallet';
 import { t, subscribeLang } from './i18n';
 import { applyTheme, subscribeTheme } from './themes';
 import { Sound } from './sound';
@@ -251,6 +251,7 @@ export default function App() {
     setSessionEarned(0);
     setNewRecord(false);
     setBombState({ charge: 0, ready: 0, used: 0, maxUses: 3 });
+    ensureMining();
     engineRef.current?.restart();
   };
 
@@ -290,6 +291,9 @@ export default function App() {
     setGameOver(false);
     setSessionEarned(0);
     setBombState({ charge: 0, ready: 0, used: 0, maxUses: 3 });
+    // 15-минутная майнинг-сессия Bee SDK могла закончиться между партиями —
+    // перезапускаем (no-op, если уже идёт), чтобы слияния снова шли в тапы.
+    ensureMining();
     track('game_start');
     if (!hasSeenTutorial()) setShowTutorial(true);
   };
