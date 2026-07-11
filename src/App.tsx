@@ -8,7 +8,7 @@ import ShopScreen from './ShopScreen';
 import AboutScreen from './AboutScreen';
 import Tutorial, { hasSeenTutorial } from './Tutorial';
 import OnboardingScreen, { hasSeenOnboarding } from './OnboardingScreen';
-import { getStoredWallet, resumeWallet, resumePendingConnect, ensureMining, subscribeMiningStatus, getMiningStatus, shortAddress, type WalletState, type MiningStatus } from './wallet';
+import { getStoredWallet, resumeWallet, resumePendingConnect, ensureMining, claimMiningReward, subscribeMiningStatus, getMiningStatus, shortAddress, type WalletState, type MiningStatus } from './wallet';
 import { t, subscribeLang } from './i18n';
 import { applyTheme, subscribeTheme } from './themes';
 import { Sound } from './sound';
@@ -179,6 +179,8 @@ export default function App() {
           setNewRecord(false);
         }
         setGameOver(true);
+        // Забрать намайненный за партию NACKL в кошелёк (get_reward)
+        claimMiningReward();
         track('game_over', { earned });
         try {
           (tg as any)?.sendData?.(JSON.stringify({

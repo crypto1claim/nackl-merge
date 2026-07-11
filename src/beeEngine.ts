@@ -406,6 +406,47 @@ export function startMining(onEvent?: (msg: string) => void): void {
     if (onEvent) onEvent(msg);
   });
   setMiningStatus('mining');
+  startRewardClaimLoop();
+}
+
+// Клейм намайненной награды. В официальном примере Acki Nacki это ОТДЕЛЬНЫЙ
+// шаг (miner.get_reward()): start() накапливает вклад и шлёт доказательства,
+// но начисленный NACKL надо забрать в кошелёк — без get_reward награда
+// «висит» неполученной. Клеймим периодически, пока идёт майнинг.
+const REWARD_CLAIM_INTERVAL = 90 * 1000;
+let rewardClaimTimer: number | null = null;
+let claimInFlight = false;
+
+async function claimReward(): Promise<void> {
+  if (!miner || claimInFlight) return;
+  claimInFlight = true;
+  try {
+    await miner.get_reward();
+  } catch {
+    // Нечего клеймить / сеть недоступна — не критично, попробуем в следующий раз.
+  } finally {
+    claimInFlight = false;
+  }
+}
+
+function startRewardClaimLoop(): void {
+  if (rewardClaimTimer !== null) return;
+  rewardClaimTimer = window.setInterval(() => {
+    if (miner) void claimReward();
+    else stopRewardClaimLoop();
+  }, REWARD_CLAIM_INTERVAL);
+}
+
+function stopRewardClaimLoop(): void {
+  if (rewardClaimTimer !== null) {
+    clearInterval(rewardClaimTimer);
+    rewardClaimTimer = null;
+  }
+}
+
+/** Забрать награду немедленно (напр. при выходе из партии). Тихо, без ошибок. */
+export async function claimRewardNow(): Promise<void> {
+  await claimReward();
 }
 
 export function addTap(x: number, y: number): void {
@@ -414,6 +455,9 @@ export function addTap(x: number, y: number): void {
 
 export function stopMining(): void {
   miner?.stop();
+  stopRewardClaimLoop();
+  // Финальный клейм при остановке сессии — не терять последний вклад.
+  void claimReward();
   if (miner) setMiningStatus('idle');
 }
 
@@ -425,6 +469,7 @@ export function disconnectBee(walletName: string): void {
   try { localStorage.removeItem(STORAGE_PREFIX + walletName); } catch { /* */ }
   clearPendingMining();
   cancelConnectSession();
+  stopRewardClaimLoop();
   miner?.free();
   miner = null;
   setMiningStatus('off');

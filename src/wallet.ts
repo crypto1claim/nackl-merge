@@ -7,6 +7,7 @@
 import {
   startConnectSession, waitWalletAndSetupMining, cancelConnectSession,
   startMining, disconnectBee, isMinerReady, restoreMiner, resumePendingMining,
+  claimRewardNow,
   type ConnectStage,
 } from './beeEngine';
 
@@ -114,4 +115,9 @@ export function checkMinerReady(): boolean {
  */
 export function ensureMining(): void {
   startMining();
+}
+
+/** Забрать намайненную награду в кошелёк. Тихо, без ошибок наружу. */
+export function claimMiningReward(): void {
+  void claimRewardNow();
 }
