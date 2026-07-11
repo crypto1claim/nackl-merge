@@ -588,6 +588,162 @@ class HDSoundEngine {
     }
   }
 
+  // ============================================================
+  // АТМОСФЕРА (волна 2): эмбиент-подложка + гул напряжения.
+  // Всё процедурное — ни одного аудиофайла, ни байта трафика.
+  // ============================================================
+
+  private ambient: { nodes: AudioNode[]; oscs: OscillatorNode[]; gain: GainNode; dropTimer: number } | null = null;
+  private tensionOsc: OscillatorNode | null = null;
+  private tensionGain: GainNode | null = null;
+
+  /**
+   * Эмбиент-подложка на время партии: два слегка расстроенных низких тона
+   * («тёплое одеяло», C2+квинта, дыхание через LFO) + редкие тихие «капли»
+   * пентатоники в ревербе раз в 7–14 сек. Очень тихо (−26дБ от мастера) —
+   * сознание её не замечает, но с ней игра звучит «студийно», без пустоты.
+   */
+  ambientStart() {
+    if (!Settings.sound) return;
+    if (this.ambient) return;
+    if (!this.ensure()) return;
+    const ctx = this.ctx!;
+    const t = ctx.currentTime;
+
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.linearRampToValueAtTime(0.05, t + 2.5); // медленный fade-in
+    gain.connect(this.dryGain);
+    const rev = ctx.createGain();
+    rev.gain.value = 0.5;
+    gain.connect(rev);
+    rev.connect(this.convolver);
+
+    // Слои пада: C2 + чуть расстроенный C2 (биения) + G2, всё под lowpass
+    const layers: Array<[number, OscillatorType, number]> = [
+      [65.41, 'triangle', 0.5],
+      [65.41 * 1.006, 'triangle', 0.45],
+      [98.0, 'sine', 0.3],
+    ];
+    const oscs: OscillatorNode[] = [];
+    const nodes: AudioNode[] = [gain, rev];
+    for (const [freq, wave, vol] of layers) {
+      const o = ctx.createOscillator();
+      o.type = wave;
+      o.frequency.value = freq;
+      const og = ctx.createGain();
+      og.gain.value = vol;
+      const lp = ctx.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.value = 300;
+      o.connect(og); og.connect(lp); lp.connect(gain);
+      o.start(t);
+      oscs.push(o);
+      nodes.push(og, lp);
+    }
+
+    // «Дыхание»: медленный LFO покачивает громкость пада
+    const lfo = ctx.createOscillator();
+    lfo.frequency.value = 0.07;
+    const lfoGain = ctx.createGain();
+    lfoGain.gain.value = 0.014;
+    lfo.connect(lfoGain);
+    lfoGain.connect(gain.gain);
+    lfo.start(t);
+    oscs.push(lfo);
+    nodes.push(lfoGain);
+
+    this.ambient = { nodes, oscs, gain, dropTimer: 0 };
+    this.scheduleAmbientDrop();
+  }
+
+  private scheduleAmbientDrop() {
+    if (!this.ambient) return;
+    const delay = 7000 + Math.random() * 7000;
+    this.ambient.dropTimer = window.setTimeout(() => {
+      if (!this.ambient) return;
+      if (Settings.sound) {
+        // Тихая «капля» пентатоники, почти целиком в реверб
+        const notes = [261.63, 311.13, 392.0, 523.25];
+        const f = notes[Math.floor(Math.random() * notes.length)] * (1 + (Math.random() - 0.5) * 0.01);
+        this.playTone({
+          freq: f,
+          harmonics: [1, 2],
+          amplitudes: [1.0, 0.12],
+          duration: 0.25,
+          attack: 0.03,
+          decay: 0.1,
+          sustain: 0.3,
+          release: 1.6,
+          volume: 0.045,
+          pan: (Math.random() - 0.5) * 0.6,
+          reverbSend: 0.7,
+          lowpass: 2000,
+          waveform: 'sine',
+        });
+      }
+      this.scheduleAmbientDrop();
+    }, delay);
+  }
+
+  /** Плавное выключение эмбиента (выход из партии / пауза / game over). */
+  ambientStop() {
+    const a = this.ambient;
+    if (!a || !this.ctx) { this.ambient = null; return; }
+    this.ambient = null;
+    clearTimeout(a.dropTimer);
+    const t = this.ctx.currentTime;
+    try {
+      a.gain.gain.cancelScheduledValues(t);
+      a.gain.gain.setValueAtTime(Math.max(a.gain.gain.value, 0.0001), t);
+      a.gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.7);
+    } catch { /* */ }
+    setTimeout(() => {
+      for (const o of a.oscs) { try { o.stop(); } catch { /* */ } }
+      for (const n of [...a.oscs, ...a.nodes]) { try { n.disconnect(); } catch { /* */ } }
+    }, 800);
+  }
+
+  /**
+   * Гул напряжения: низкий тревожный тон, растущий с заполнением банки.
+   * level 0..1 (1 = монеты у линии game over). Громкость квадратичная —
+   * до последней трети почти неслышен, у самой линии — отчётливый гул.
+   * Вызывается движком с троттлингом; осциллятор переиспользуется.
+   */
+  setTension(level: number) {
+    const clamped = Settings.sound ? Math.max(0, Math.min(1, level)) : 0;
+    if (!this.ctx || !this.initialized) {
+      if (clamped === 0) return;
+      if (!this.ensure()) return;
+    }
+    const ctx = this.ctx!;
+    if (!this.tensionOsc) {
+      if (clamped === 0) return;
+      const o = ctx.createOscillator();
+      o.type = 'sawtooth';
+      o.frequency.value = 55;
+      const lp = ctx.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.value = 150;
+      lp.Q.value = 0.7;
+      const g = ctx.createGain();
+      g.gain.value = 0;
+      o.connect(lp); lp.connect(g); g.connect(this.dryGain);
+      o.start();
+      this.tensionOsc = o;
+      this.tensionGain = g;
+    }
+    const t = ctx.currentTime;
+    const target = clamped * clamped * 0.085;
+    try {
+      this.tensionGain!.gain.cancelScheduledValues(t);
+      this.tensionGain!.gain.setValueAtTime(this.tensionGain!.gain.value, t);
+      this.tensionGain!.gain.linearRampToValueAtTime(target, t + 0.45);
+      // Питч слегка ползёт вверх с напряжением — тревожнее
+      this.tensionOsc!.frequency.linearRampToValueAtTime(55 + clamped * 16, t + 0.45);
+    } catch { /* */ }
+  }
+
   /** Purchase — чистый звук покупки: «деньги звякнули + успех».
    *  Без писка — два тёплых тона с реверберацией. */
   purchase() {
