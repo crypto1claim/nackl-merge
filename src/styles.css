@@ -182,6 +182,29 @@ button, a, [role="button"] {
   .powerup-group { padding-right: 4px; margin-right: 2px; gap: 4px; }
 }
 
+/* ── Тач-зоны HUD ≥44px (Apple HIG) ──────────────────────────
+   Кнопки визуально 30–36px (HUD должен оставаться компактным), но палец
+   должен попадать по площади ~44px. Невидимый ::after расширяет зону
+   нажатия БЕЗ изменения лейаута: по вертикали щедро (там пусто), по
+   горизонтали умеренно (рядом соседние кнопки). */
+.powerup-mini::after {
+  content: '';
+  position: absolute;
+  inset: -8px -3px;
+}
+.shake-damage-btn::after {
+  content: '';
+  position: absolute;
+  inset: -8px -5px;
+  border-radius: 12px;
+}
+.settings-fab.hud-pause { position: relative; overflow: visible; }
+.settings-fab.hud-pause::after {
+  content: '';
+  position: absolute;
+  inset: -8px -5px;
+}
+
 /* Поля старого HUD (которые ещё могут использоваться где-то) — нейтральная база */
 .hud-label, .hud-stat, .hud-stat-label, .hud-stat-value,
 .hud-score-block, .hud-best-block, .score, .hud-best, .hud-wallet, .hud-next, .hud-next-coin {
