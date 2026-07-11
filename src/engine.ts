@@ -202,6 +202,10 @@ export class GameEngine {
   private bombReadyCharges = 0;
   private lastThudAt = 0;
   private lastTensionAt = 0;
+  // Для защиты от случайного дропа (см. attachPointerHandlers)
+  private pointerDownAt = 0;
+  private pointerDownX: number | null = null;
+  private pointerDragged = false;
   private comboPopups: { x: number; y: number; text: string; life: number; color: string }[] = [];
 
   constructor(canvas: HTMLCanvasElement, cb: GameCallbacks) {
@@ -749,20 +753,43 @@ export class GameEngine {
       if (this.gameOver || this.paused) return;
       this.canvas.setPointerCapture(e.pointerId);
       this.pointerX = toLogicalX(e.clientX);
+      this.pointerDownAt = performance.now();
+      this.pointerDownX = this.pointerX;
+      this.pointerDragged = false;
       this.needsRender = true;
     }, { signal });
     this.canvas.addEventListener('pointermove', (e) => {
       if (this.gameOver || this.paused) return;
-      if (this.pointerX !== null) { this.pointerX = toLogicalX(e.clientX); this.needsRender = true; }
+      if (this.pointerX !== null) {
+        this.pointerX = toLogicalX(e.clientX);
+        if (this.pointerDownX !== null && Math.abs(this.pointerX - this.pointerDownX) > 6) {
+          this.pointerDragged = true;
+        }
+        this.needsRender = true;
+      }
     }, { signal });
     const release = () => {
       if (this.gameOver || this.paused) return;
-      if (this.aiming) this.dropAiming();
+      // Защита от случайного дропа: мгновенный тап без движения (<150мс,
+      // <6px) только ПРИЦЕЛИВАЕТ монету в точку касания, но не роняет её.
+      // Осознанный дроп = потянул (drag) ЛИБО подержал палец >150мс.
+      // Раньше любое случайное касание экрана мгновенно роняло монету.
+      const deliberate = this.pointerDragged
+        || performance.now() - this.pointerDownAt >= 150;
+      if (this.aiming && deliberate) this.dropAiming();
       this.pointerX = null;
+      this.pointerDownX = null;
       this.needsRender = true;
     };
     this.canvas.addEventListener('pointerup', release, { signal });
-    this.canvas.addEventListener('pointercancel', release, { signal });
+    // pointercancel = системный жест перехватил касание (шторка, свайп ОС).
+    // Раньше он РОНЯЛ монету — источник случайных дропов. Теперь только
+    // сбрасывает прицеливание.
+    this.canvas.addEventListener('pointercancel', () => {
+      this.pointerX = null;
+      this.pointerDownX = null;
+      this.needsRender = true;
+    }, { signal });
   }
 
   private dropAiming() {
