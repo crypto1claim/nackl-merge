@@ -274,19 +274,20 @@ class HDSoundEngine {
     const ctx = this.ctx!;
     const startAt = ctx.currentTime;
 
-    // Короткая шумовая атака
+    // Короткая шумовая атака — глухая, без шипения
     this.noiseAttack({
       duration: 0.025,
-      volume: 0.08,
-      lowpass: 1200,
+      volume: 0.06,
+      lowpass: 900,
       pan
     });
 
-    // Главный осциллятор с быстрым pitch sweep вниз (характерно для пузыря)
+    // Главный осциллятор с МЯГКИМ pitch sweep вниз. Раньше старт был на
+    // 2.5× частоты — в больших комбо это свистело; теперь 1.6× и глубже вниз.
     const osc = ctx.createOscillator();
     osc.type = 'sine';
-    osc.frequency.setValueAtTime(freq * 2.5, startAt);
-    osc.frequency.exponentialRampToValueAtTime(freq * 0.7, startAt + 0.18);
+    osc.frequency.setValueAtTime(freq * 1.6, startAt);
+    osc.frequency.exponentialRampToValueAtTime(freq * 0.6, startAt + 0.18);
 
     const gain = ctx.createGain();
     gain.gain.setValueAtTime(0, startAt);
@@ -295,8 +296,8 @@ class HDSoundEngine {
 
     const lp = ctx.createBiquadFilter();
     lp.type = 'lowpass';
-    lp.frequency.value = 2500;
-    lp.Q.value = 2.5;  // лёгкий резонанс для "пузырности"
+    lp.frequency.value = 1600;   // было 2500 — резало ухо в каскадах
+    lp.Q.value = 1.1;            // был резонанс 2.5 — добавлял «писк»
 
     osc.connect(gain);
     gain.connect(lp);
@@ -424,15 +425,24 @@ class HDSoundEngine {
    * Combo — лопающиеся пузыри! Несколько подряд.
    * Каждый комбо = 1 пузырь
    */
+  private lastComboSoundAt = 0;
+
   combo(count: number) {
     if (!Settings.sound) return;
-    // Эскалация: питч растёт с каскадом, лёгкий джиттер против повторяемости,
-    // на больших сериях (5+) — второй пузырик вдогонку (гуще звучит).
-    const jitter = 1 + (Math.random() - 0.5) * 0.05;
-    const baseFreq = (280 + Math.min(count, 8) * 45) * jitter;
-    this.bubblePop(baseFreq, (Math.random() - 0.5) * 0.4, 0.25);
+    // Троттлинг: в каскаде слияния сыпятся пачкой — без паузы пузыри
+    // сливаются в свистящую кашу. Не чаще одного пузыря в 90мс.
+    const now = performance.now();
+    if (now - this.lastComboSoundAt < 90) return;
+    this.lastComboSoundAt = now;
+
+    // МЯГКАЯ эскалация: питч растёт только до ×4 и выходит на плато
+    // (максимум ~350 Гц — тёплая середина, никаких верхов). Дальше серия
+    // «густеет» НИЗОМ: на 5+ вдогонку идёт низкий бульк октавой ниже.
+    const jitter = 1 + (Math.random() - 0.5) * 0.04;
+    const baseFreq = (240 + Math.min(count, 4) * 28) * jitter;
+    this.bubblePop(baseFreq, (Math.random() - 0.5) * 0.35, 0.22);
     if (count >= 5) {
-      setTimeout(() => this.bubblePop(baseFreq * 1.35, (Math.random() - 0.5) * 0.4, 0.16), 70);
+      setTimeout(() => this.bubblePop(baseFreq * 0.55, (Math.random() - 0.5) * 0.3, 0.16), 75);
     }
   }
 
