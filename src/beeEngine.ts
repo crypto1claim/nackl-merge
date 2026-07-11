@@ -38,6 +38,11 @@ const ENDPOINTS       = ['https://mainnet.ackinacki.org'];
 const PUSH_API_URL    = 'https://app-backend-dev.ackinacki.org/api';
 const MINING_DURATION = 15 * 60 * 1000;
 const STORAGE_PREFIX  = 'acki_merge_bee_';
+// Бесплатная раздача движка через jsDelivr (файл публично лежит в npm).
+// ⚠️ При апгрейде @teamgosh/bee-sdk обнови ВЕРСИЮ в URL и ХЭШ:
+//    sha256sum node_modules/@teamgosh/bee-sdk/bee_sdk_bg.wasm
+const CDN_WASM_URL = 'https://cdn.jsdelivr.net/npm/@teamgosh/bee-sdk@3.1.0/bee_sdk_bg.wasm';
+const WASM_SHA256  = 'af15029bf49ed79a6758c36c76df91346ec176590eee0473e80a5a05115560bd';
 const SESSION_TTL_SECS = 600;          // сколько живёт сессия подключения
 const HELLO_ATTEMPTS   = 150;          // ~2.5 мин на «открыл кошелёк и подтвердил»
 const PROPAGATION_ATTEMPTS = 120;      // ~4 мин на он-чейн распространение ключей
@@ -151,35 +156,54 @@ export async function initBeeEngine(onProgress?: (pct: number) => void): Promise
   if (wasmReady) return;
   // WASM ~8.5 МБ — на мобильной сети это заметная пауза. Грузим вручную через
   // fetch со стримом, чтобы показать прогресс, и передаём готовые байты в init.
-  // При сбое стрима — фоллбэк на стандартную загрузку по URL. Если и она упадёт
-  // (сеть недоступна) — ошибка уходит наверх, UI предложит повторить.
+  //
+  // Экономия трафика Vercel (бесплатный тариф — 100 ГБ/мес, движок — 80%
+  // веса игры): сначала пробуем бесплатный CDN jsDelivr, который раздаёт
+  // файл прямо из npm-пакета SDK. Байты с CDN проверяются по SHA-256 —
+  // чужому CDN не доверяем вслепую. При любом сбое (сеть/404/битый хэш) —
+  // фолбэк на собственный домен (тот же файл, собранный Vite).
   try {
-    const resp = await fetch(wasmUrl);
-    if (!resp.ok || !resp.body) throw new Error(`WASM HTTP ${resp.status}`);
-    const total = Number(resp.headers.get('Content-Length')) || 0;
-    const reader = resp.body.getReader();
-    const chunks: Uint8Array[] = [];
-    let loaded = 0;
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      if (!value) continue;
-      chunks.push(value);
-      loaded += value.length;
-      const pct = total > 0
-        ? Math.min(99, Math.round((loaded / total) * 100))
-        : Math.min(95, Math.round((loaded / (9 * 1024 * 1024)) * 100));
-      onProgress?.(pct);
+    let bytes: ArrayBuffer | null = null;
+    try {
+      bytes = await fetchWasmBytes(CDN_WASM_URL, onProgress);
+      const digest = await crypto.subtle.digest('SHA-256', bytes);
+      const hex = Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, '0')).join('');
+      if (hex !== WASM_SHA256) throw new Error('WASM checksum mismatch');
+    } catch {
+      bytes = await fetchWasmBytes(wasmUrl, onProgress);
     }
-    const merged = new Uint8Array(loaded);
-    let off = 0;
-    for (const c of chunks) { merged.set(c, off); off += c.length; }
-    await __wbg_init({ module_or_path: merged.buffer });
+    await __wbg_init({ module_or_path: bytes });
   } catch {
     await __wbg_init({ module_or_path: wasmUrl });
   }
   wasmReady = true;
   onProgress?.(100);
+}
+
+async function fetchWasmBytes(url: string, onProgress?: (pct: number) => void): Promise<ArrayBuffer> {
+  const resp = await fetch(url);
+  if (!resp.ok || !resp.body) throw new Error(`WASM HTTP ${resp.status}`);
+  const total = Number(resp.headers.get('Content-Length')) || 0;
+  const reader = resp.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let loaded = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    if (!value) continue;
+    chunks.push(value);
+    loaded += value.length;
+    // С CDN Content-Length может быть размером СЖАТОГО файла (gzip/brotli),
+    // а loaded считает распакованные байты — поэтому жёсткий потолок 99%.
+    const pct = total > 0
+      ? Math.min(99, Math.round((loaded / total) * 100))
+      : Math.min(95, Math.round((loaded / (9 * 1024 * 1024)) * 100));
+    onProgress?.(pct);
+  }
+  const merged = new Uint8Array(loaded);
+  let off = 0;
+  for (const c of chunks) { merged.set(c, off); off += c.length; }
+  return merged.buffer;
 }
 
 /**
