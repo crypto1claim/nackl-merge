@@ -407,12 +407,17 @@ class HDSoundEngine {
       // Октава 4 — для crystalChime (NACKL)
       1046.50,
     ];
-    const freq = scale[Math.min(level, scale.length - 1)];
+    // «Round-robin» вариативность: живые инструменты никогда не звучат
+    // одинаково дважды. Микросдвиг питча (±3%) и громкости (±15%) убирает
+    // машинную повторяемость — ухо перестаёт замечать «сэмпл по кругу».
+    const jitter = 1 + (Math.random() - 0.5) * 0.06;
+    const freq = scale[Math.min(level, scale.length - 1)] * jitter;
+    const volJitter = 0.85 + Math.random() * 0.3;
     const pan = (Math.random() - 0.5) * 0.3;
 
-    if (level <= 7) this.woodTap(freq, pan);
-    else if (level <= 9) this.softBell(freq, pan);
-    else this.crystalChime(freq, pan);
+    if (level <= 7) this.woodTap(freq, pan, 0.35 * volJitter);
+    else if (level <= 9) this.softBell(freq, pan, 0.22 * volJitter);
+    else this.crystalChime(freq, pan, 0.28 * volJitter);
   }
 
   /**
@@ -421,8 +426,14 @@ class HDSoundEngine {
    */
   combo(count: number) {
     if (!Settings.sound) return;
-    const baseFreq = 280 + Math.min(count, 6) * 40;
+    // Эскалация: питч растёт с каскадом, лёгкий джиттер против повторяемости,
+    // на больших сериях (5+) — второй пузырик вдогонку (гуще звучит).
+    const jitter = 1 + (Math.random() - 0.5) * 0.05;
+    const baseFreq = (280 + Math.min(count, 8) * 45) * jitter;
     this.bubblePop(baseFreq, (Math.random() - 0.5) * 0.4, 0.25);
+    if (count >= 5) {
+      setTimeout(() => this.bubblePop(baseFreq * 1.35, (Math.random() - 0.5) * 0.4, 0.16), 70);
+    }
   }
 
   /**

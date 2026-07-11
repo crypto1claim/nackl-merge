@@ -45,6 +45,25 @@ interface FruitData {
   merged: boolean;
   dangerSince: number | null;
   spawnAnim: number;
+  /** Амплитуда сплющивания при приземлении (0..1) и момент удара —
+      монета на долю секунды приплюскивается о поверхность (game feel). */
+  squash?: number;
+  squashAt?: number;
+}
+
+/** Длительность анимации сплющивания при приземлении, мс */
+const SQUASH_MS = 160;
+
+/**
+ * easeOutBack — курва «выпрыгивания» с овершутом: новая монета появляется
+ * маленькой, перелетает чуть выше 100% и упруго оседает. Стандартный приём
+ * squash & stretch — то самое «сочное» ощущение слияния.
+ */
+function easeOutBack(p: number): number {
+  const c1 = 2.6;             // сила овершута (~+12% в пике)
+  const c3 = c1 + 1;
+  const q = p - 1;
+  return 1 + c3 * q * q * q + c1 * q * q;
 }
 
 export interface GameCallbacks {
@@ -155,6 +174,10 @@ export class GameEngine {
   private particles = new ParticleSystem();
   private cameraShake = 0;
   private cameraShakeStrength = 0;
+  // Hit-stop: микропауза физики на рождении топ-монеты (приём из файтингов —
+  // мир «замирает» на долю секунды, и событие ощущается мощным). Эффекты и
+  // рендер продолжают жить, замирает только Matter.Engine.update.
+  private hitStopUntil = 0;
   // Превью следующей монеты — заранее сгенерированный уровень
   private nextLevel: number = randomSpawnLevel();
   // Комбо: если merge происходит в течение COMBO_WINDOW после прошлого — счётчик растёт
@@ -479,6 +502,12 @@ export class GameEngine {
             const volume = Math.min(1.0, 0.4 + (vy - 1.2) * 0.15);
             Sound.thud(volume);
           }
+          // Сплющивание при ударе: амплитуда от силы падения (game feel)
+          if (vy > 1.4) {
+            const fd = (fruit as any).fruitData as FruitData;
+            fd.squash = Math.min(1, 0.35 + (vy - 1.4) * 0.12);
+            fd.squashAt = now;
+          }
         }
 
         if (!da || !db) continue;
@@ -583,14 +612,19 @@ export class GameEngine {
           }
 
           // === Эффекты ===
-          const particleCount = 8 + nextLevel * 2 + (comboMult - 1) * 4;
-          this.particles.burst(mx, my, nextDef.glow, particleCount, 3 + nextLevel * 0.3);
+          // Эскалация комбо: каждый следующий уровень каскада заметно «жирнее»
+          // (больше искр, шире кольцо) — игрок кожей чувствует рост серии.
+          const comboBoost = Math.min(this.comboCount - 1, 8);
+          const particleCount = 8 + nextLevel * 2 + (comboMult - 1) * 4 + comboBoost * 3;
+          this.particles.burst(mx, my, nextDef.glow, particleCount, 3 + nextLevel * 0.3 + comboBoost * 0.3);
           if (nextLevel >= 5 || comboMult >= 2) {
-            this.particles.ringBurst(mx, my, nextDef.colorLight, 12);
+            this.particles.ringBurst(mx, my, nextDef.colorLight, 12 + comboBoost * 2);
           }
           if (nextLevel >= 8) {
             this.cameraShake = 250;
             this.cameraShakeStrength = 4 + (nextLevel - 8) * 2;
+            // Микропауза мира — рождение топ-монеты ощущается ударом
+            this.hitStopUntil = performance.now() + 60;
           } else if (nextLevel >= 5 || comboMult >= 3) {
             this.cameraShake = 150;
             this.cameraShakeStrength = 2;
@@ -803,11 +837,15 @@ export class GameEngine {
     if (this.comboPopups.length > 0) return true;
     if (this.cameraShake > 0) return true;
     if (this.aiming && this.pointerX !== null) return true;
-    if (!this.aiming && performance.now() < this.nextSpawnAt + 32) return true;
+    const nowMs = performance.now();
+    if (!this.aiming && nowMs < this.nextSpawnAt + 32) return true;
+    if (nowMs < this.hitStopUntil + 32) return true;
     for (const body of bodies) {
       const data = (body as any).fruitData as FruitData | undefined;
       if (!data) continue;
       if (data.spawnAnim > 0) return true;
+      // Анимация сплющивания ещё идёт — кадр нужен, даже если тело замерло
+      if (data.squashAt !== undefined && nowMs - data.squashAt < SQUASH_MS) return true;
       // тело ещё движется — нужно считать физику
       if (Math.abs(body.velocity.x) > 0.06 || Math.abs(body.velocity.y) > 0.06
           || Math.abs(body.angularVelocity) > 0.01) return true;
@@ -840,7 +878,8 @@ export class GameEngine {
         this.aiming.x = Math.max(minX, Math.min(maxX, this.pointerX));
       }
       if (!this.aiming && time >= this.nextSpawnAt) this.spawnAiming();
-      Matter.Engine.update(this.engine, dt);
+      // Hit-stop: физика замирает на ~60мс после рождения топ-монеты
+      if (time >= this.hitStopUntil) Matter.Engine.update(this.engine, dt);
       for (const body of bodies) {
         const data = (body as any).fruitData as FruitData | undefined;
         if (data && data.spawnAnim > 0) data.spawnAnim = Math.max(0, data.spawnAnim - dt / 250);
@@ -1261,10 +1300,26 @@ export class GameEngine {
         this.drawGlow(body.position.x, body.position.y, FRUITS[data.level], data.spawnAnim);
       }
     }
+    const nowMs = performance.now();
     for (const body of bodies) {
       const data = (body as any).fruitData as FruitData | undefined;
       if (!data) continue;
-      this.drawCoin(body.position.x, body.position.y, body.angle, FRUITS[data.level], data.spawnAnim);
+      // Сплющивание при приземлении: якорь у нижней кромки монеты, чтобы
+      // она «приплюскивалась» о поверхность, а не сжималась в центре.
+      const squashT = data.squashAt !== undefined ? nowMs - data.squashAt : Infinity;
+      if (data.squash && squashT < SQUASH_MS) {
+        const amp = data.squash * (1 - squashT / SQUASH_MS);
+        const r = FRUITS[data.level].radius;
+        const bottomY = body.position.y + r;
+        ctx.save();
+        ctx.translate(body.position.x, bottomY);
+        ctx.scale(1 + amp * 0.18, 1 - amp * 0.22);
+        ctx.translate(-body.position.x, -bottomY);
+        this.drawCoin(body.position.x, body.position.y, body.angle, FRUITS[data.level], data.spawnAnim);
+        ctx.restore();
+      } else {
+        this.drawCoin(body.position.x, body.position.y, body.angle, FRUITS[data.level], data.spawnAnim);
+      }
     }
 
     // Партиклы — поверх всех монет
@@ -1734,7 +1789,11 @@ export class GameEngine {
 
   private drawCoin(x: number, y: number, angle: number, def: FruitDef, spawnAnim: number) {
     const ctx = this.ctx;
-    const scale = 1 + spawnAnim * 0.25;
+    // Pop-in с овершутом: spawnAnim идёт 1→0, прогресс p = 1-spawnAnim.
+    // Монета рождается на 55% размера, выпрыгивает выше 100% и упруго
+    // оседает (easeOutBack) — вместо прежнего линейного «сдувания» с 125%.
+    const p = 1 - spawnAnim;
+    const scale = spawnAnim > 0 ? 0.55 + 0.45 * easeOutBack(p) : 1;
     const r = def.radius * scale;
     const sprite = this.spritesReady ? getSprite(def.ticker) : null;
 
