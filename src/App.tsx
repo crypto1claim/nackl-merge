@@ -145,6 +145,15 @@ export default function App() {
     else engineRef.current.resume();
   }, [showTutorial]);
 
+  // Эмбиент-подложка живёт только во время активной партии: тихий тёплый
+  // пад + редкие «капли». На паузе/туториале/game over — плавно гаснет.
+  useEffect(() => {
+    const active = inGame && !paused && !gameOver && !showTutorial;
+    if (active) Sound.ambientStart();
+    else Sound.ambientStop();
+    return () => Sound.ambientStop();
+  }, [inGame, paused, gameOver, showTutorial]);
+
   // Запуск движка
   useEffect(() => {
     if (!wallet.connected || !inGame || !canvasRef.current) return;

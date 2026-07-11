@@ -201,6 +201,7 @@ export class GameEngine {
   /** Сколько готовых зарядов на руках (накопленные но не потраченные) */
   private bombReadyCharges = 0;
   private lastThudAt = 0;
+  private lastTensionAt = 0;
   private comboPopups: { x: number; y: number; text: string; life: number; color: string }[] = [];
 
   constructor(canvas: HTMLCanvasElement, cb: GameCallbacks) {
@@ -239,6 +240,7 @@ export class GameEngine {
   pause() {
     if (this.paused || this.gameOver) return;
     this.paused = true;
+    Sound.setTension(0);   // на паузе гул напряжения замолкает
   }
 
   /** Снять с паузы. Сбрасываем lastTime, чтобы не было гигантского dt. */
@@ -785,6 +787,7 @@ export class GameEngine {
     this.running = false;
     this.epoch++;            // отсекаем хвосты отложенных коллбэков
     this.detonating = false;
+    Sound.setTension(0);     // гул напряжения не должен пережить партию
     cancelAnimationFrame(this.rafId);
     this.resizeObserver.disconnect();
     this.pointerAbort?.abort();  // снять pointer-листенеры с канваса
@@ -795,6 +798,7 @@ export class GameEngine {
   restart() {
     this.epoch++;            // новая партия — старые таймеры/микрозадачи недействительны
     this.detonating = false;
+    Sound.setTension(0);     // банка пуста — напряжения нет
     Matter.World.clear(this.world, false);
     Matter.Engine.clear(this.engine);
     this.initPhysics();
@@ -908,6 +912,9 @@ export class GameEngine {
   };
 
   private checkGameOver(time: number) {
+    // Заодно меряем «напряжение»: насколько стопка близка к линии game over.
+    // Питает низкий гул (Sound.setTension) — бесплатное нарастание тревоги.
+    let highestTop = Infinity;
     for (const body of Matter.Composite.allBodies(this.world)) {
       const data = (body as any).fruitData as FruitData | undefined;
       if (!data) continue;
@@ -918,6 +925,7 @@ export class GameEngine {
       const speed = Math.hypot(body.velocity.x, body.velocity.y);
       const above = topY < DANGER_LINE_Y;
       const resting = speed < RESTING_SPEED_THRESHOLD;
+      if (resting && topY < highestTop) highestTop = topY;
       if (above && resting) {
         if (data.dangerSince === null) data.dangerSince = time;
         if (time - data.dangerSince >= GAME_OVER_GRACE_MS) { this.triggerGameOver(); return; }
@@ -925,11 +933,21 @@ export class GameEngine {
         data.dangerSince = null;
       }
     }
+    // Троттлинг 250мс: гул меняется плавными рампами, чаще не нужно.
+    if (time - this.lastTensionAt > 250) {
+      this.lastTensionAt = time;
+      // 0 — стопка ниже 180px от линии; 1 — у самой линии
+      const tension = highestTop === Infinity
+        ? 0
+        : Math.max(0, Math.min(1, 1 - (highestTop - DANGER_LINE_Y) / 180));
+      Sound.setTension(tension);
+    }
   }
 
   private triggerGameOver() {
     this.gameOver = true;
     this.aiming = null;
+    Sound.setTension(0);
     hapticError();
     Sound.gameOver();
     this.cb.onGameOver(this.score);
