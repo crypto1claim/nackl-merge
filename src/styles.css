@@ -108,13 +108,24 @@ button, a, [role="button"] {
   padding: 0 11px;
   flex-shrink: 0;
 }
+/* Точка у кошелька — ЖИВОЙ статус майнинга (см. MiningStatus в beeEngine):
+   зелёная пульсирующая = майнит, серая = сессия не идёт, красная = ошибка. */
 .wallet-dot {
   width: 7px; height: 7px;
-  background: #4ade80;
+  background: #9ca3af;
   border-radius: 50%;
+  flex-shrink: 0;
+}
+.wallet-dot-mining {
+  background: #4ade80;
   box-shadow: 0 0 6px #4ade80;
   animation: pulse-dot 2s ease-in-out infinite;
-  flex-shrink: 0;
+}
+.wallet-dot-idle { background: #9ca3af; }
+.wallet-dot-off { background: #6b7280; }
+.wallet-dot-error {
+  background: #f87171;
+  box-shadow: 0 0 6px #f87171;
 }
 @keyframes pulse-dot {
   0%, 100% { opacity: 1; transform: scale(1); }
@@ -5125,6 +5136,17 @@ button:active:not(.toggle):not(.lang-btn):not(.modal-close)::after {
 .menu-cta-deeplink { text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 8px; }
 .menu-cta-secondary { background: rgba(255,255,255,0.1) !important; border: 1.5px solid rgba(255,255,255,0.2) !important; font-size: 14px !important; }
 .menu-error { font-size: 12px; color: #ff6b6b; text-align: center; margin: 0; }
+/* Техническая деталь ошибки подключения — для диагностики по скриншоту */
+.menu-error-detail {
+  font-size: 10px;
+  color: rgba(255,255,255,0.45);
+  font-family: ui-monospace, Menlo, monospace;
+  text-align: center;
+  margin: 0;
+  word-break: break-word;
+  user-select: text;
+  -webkit-user-select: text;
+}
 .menu-qr-toggle {
   background: none;
   border: none;
@@ -5136,6 +5158,7 @@ button:active:not(.toggle):not(.lang-btn):not(.modal-close)::after {
   padding: 4px;
 }
 .menu-qr-block { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.menu-connect-status { display: flex; align-items: center; justify-content: center; gap: 8px; }
 .menu-qr-box {
   background: #fff;
   border-radius: 12px;
