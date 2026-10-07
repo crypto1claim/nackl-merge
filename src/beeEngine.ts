@@ -67,8 +67,13 @@ function loadKeys(walletName: string): StoredKeys | null {
 }
 
 function saveKeys(data: StoredKeys) {
+  currentWallet = data.walletName;
   try { localStorage.setItem(STORAGE_PREFIX + data.walletName, JSON.stringify(data)); } catch { /* */ }
 }
+
+// Имя подключённого кошелька — нужно для пересоздания майнера после сбоя
+// отправки (загружаем ключи из localStorage по этому имени).
+let currentWallet: string | null = null;
 
 // Прогресс регистрации майнинг-ключей персистится: iOS замораживает webview,
 // пока игрок подтверждает в кошельке, и ожидание в игре обрывается сетевой
@@ -198,13 +203,51 @@ function handleMinerMessage(msg: string): void {
   lastMinerMsg = msg;
   try {
     const payload = JSON.parse(msg) as { action?: string; data?: { status?: string } | null; error?: string | null };
-    if (payload.error) { lastMinerError = String(payload.error); setMiningStatus('error'); return; }
+    if (payload.error) {
+      lastMinerError = String(payload.error);
+      // Отказ отправки корня сессии / порча инстанса — ИЗВЕСТНОЕ явление на
+      // загруженном mainnet (Bee Engine). Он портит майнер (miner_state_corrupted)
+      // и расходует seed; can_start() становится false, и майнинг заклинивает
+      // навсегда. Лечение (как в десктоп-майнере Dastic): пересоздать майнер из
+      // актуального состояния контракта и начать новую сессию. НЕ оставляем
+      // статус 'error' навсегда — запускаем восстановление.
+      void recoverMiner();
+      return;
+    }
     const status = payload.data?.status;
     if (payload.action === 'status_updated' && status) {
       if (status === 'computing' || status === 'submitting') setMiningStatus('mining');
       else if (status === 'finished' || status === 'removed') setMiningStatus('idle');
     }
   } catch { /* не-JSON сообщения игнорируем */ }
+}
+
+// Пересоздание майнера после сбоя отправки. Бэкофф: сбои нормальны на busy
+// mainnet, поэтому восстанавливаемся не чаще раза в 12с, чтобы не долбить сеть.
+let recoverInFlight = false;
+let lastRecoverAt = 0;
+
+async function recoverMiner(): Promise<void> {
+  if (recoverInFlight) return;
+  const now = Date.now();
+  if (now - lastRecoverAt < 12000) return;
+  recoverInFlight = true;
+  lastRecoverAt = now;
+  setMiningStatus('error');          // кратковременно: идёт пересоздание
+  try {
+    const wname = currentWallet;
+    const stored = wname ? loadKeys(wname) : null;
+    if (!stored) return;
+    try { miner?.free(); } catch { /* */ }
+    // Свежий инстанс из сохранённых ключей = чистая очередь seed'ов.
+    miner = await Miner.new(ENDPOINTS, APP_ID, stored.minerAddress, stored.publicKey, stored.secretKey);
+    beginSession();                  // сразу новая сессия (can_start снова true)
+  } catch {
+    // Сеть недоступна — session keeper/ещё одно сообщение об ошибке
+    // попробуют восстановить позже.
+  } finally {
+    recoverInFlight = false;
+  }
 }
 
 let wasmReady = false;
@@ -347,6 +390,7 @@ async function doWalletSetup(
   if (stored) {
     try { miner?.free(); } catch { /* */ }
     miner = await Miner.new(ENDPOINTS, APP_ID, stored.minerAddress, stored.publicKey, stored.secretKey);
+    currentWallet = walletName;
     setMiningStatus('idle');
     assertActive();
     return walletName;
@@ -501,6 +545,7 @@ export async function restoreMiner(walletName: string): Promise<boolean> {
   if (!wasmReady) await initBeeEngine();
   try { miner?.free(); } catch { /* */ }
   miner = await Miner.new(ENDPOINTS, APP_ID, stored.minerAddress, stored.publicKey, stored.secretKey);
+  currentWallet = walletName;
   setMiningStatus('idle');
   return true;
 }
@@ -531,8 +576,16 @@ function startSessionKeeper(): void {
   if (sessionKeeperTimer !== null) return;
   sessionKeeperTimer = window.setInterval(() => {
     if (!miner) { stopSessionKeeper(); return; }
-    // can_start() === true → сессии нет (завершилась) → начинаем новую.
-    if (miner.can_start()) beginSession();
+    let startable = false;
+    try { startable = miner.can_start(); } catch { /* */ }
+    if (startable) {
+      // Сессия завершилась (вклады отправлены) → начинаем новую.
+      beginSession();
+    } else if (miningStatus === 'error') {
+      // Майнер заклинило после сбоя отправки (can_start=false, seed-очередь
+      // пуста) — пересоздаём из состояния контракта (с бэкоффом внутри).
+      void recoverMiner();
+    }
   }, SESSION_KEEP_INTERVAL);
 }
 
