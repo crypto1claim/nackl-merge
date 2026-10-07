@@ -41,8 +41,8 @@ const STORAGE_PREFIX  = 'acki_merge_bee_';
 // Бесплатная раздача движка через jsDelivr (файл публично лежит в npm).
 // ⚠️ При апгрейде @teamgosh/bee-sdk обнови ВЕРСИЮ в URL и ХЭШ:
 //    sha256sum node_modules/@teamgosh/bee-sdk/bee_sdk_bg.wasm
-const CDN_WASM_URL = 'https://cdn.jsdelivr.net/npm/@teamgosh/bee-sdk@3.1.0/bee_sdk_bg.wasm';
-const WASM_SHA256  = 'af15029bf49ed79a6758c36c76df91346ec176590eee0473e80a5a05115560bd';
+const CDN_WASM_URL = 'https://cdn.jsdelivr.net/npm/@teamgosh/bee-sdk@5.1.1/bee_sdk_bg.wasm';
+const WASM_SHA256  = 'deb6f6ea9278f82fab58ed9167adb3cbf3644ecb73a5f7b71acac227a6797e95';
 const SESSION_TTL_SECS = 600;          // сколько живёт сессия подключения
 const HELLO_ATTEMPTS   = 150;          // ~2.5 мин на «открыл кошелёк и подтвердил»
 const PROPAGATION_ATTEMPTS = 120;      // ~4 мин на он-чейн распространение ключей
