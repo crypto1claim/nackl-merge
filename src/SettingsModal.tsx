@@ -11,7 +11,7 @@
 import { useState } from 'react';
 import { t, getLang, setLang, type Lang } from './i18n';
 import { Settings } from './settings';
-import { disconnectWallet, getMiningDebug, type WalletState } from './wallet';
+import { disconnectWallet, getMiningDebug, probeKeysPropagated, type WalletState } from './wallet';
 import { hapticSelection } from './telegram';
 import { Sound } from './sound';
 
@@ -104,7 +104,18 @@ export default function SettingsModal({ onClose, onWalletDisconnect }: Props) {
  *  Обновляется по кнопке (чтобы не дёргать сеть постоянно в настройках). */
 function MiningDiagnostics() {
   const [d, setD] = useState(() => getMiningDebug());
-  const refresh = () => { Sound.click(); setD(getMiningDebug()); };
+  const [keys, setKeys] = useState<'idle' | 'checking' | 'ok' | 'pending' | 'nokeys'>('idle');
+  const refresh = () => {
+    Sound.click();
+    setD(getMiningDebug());
+    setKeys('checking');
+    probeKeysPropagated().then(setKeys).catch(() => setKeys('pending'));
+  };
+  const keysLabel =
+    keys === 'ok' ? '✓ зарегистрированы (сбои = перегрузка сети)'
+    : keys === 'pending' ? '… ещё не подтверждены'
+    : keys === 'nokeys' ? '✗ нет ключей — переподключи кошелёк'
+    : keys === 'checking' ? 'проверяю…' : '— нажми ↻';
   return (
     <div className="mining-diag">
       <div className="mining-diag-head">
@@ -115,6 +126,7 @@ function MiningDiagnostics() {
         <div>status: <b>{d.status}</b></div>
         <div>confirmed taps (epoch): <b>{d.tapSum}</b> · 5m: <b>{d.tapSum5m}</b></div>
         <div>sent by game: <b>{d.localTaps}</b></div>
+        <div>keys on-chain: <b>{keysLabel}</b></div>
         {d.lastMsg && <div className="mining-diag-msg">msg: {d.lastMsg}</div>}
         {d.lastError && <div className="mining-diag-err">err: {d.lastError}</div>}
         {d.pollError && <div className="mining-diag-err">poll: {d.pollError}</div>}
