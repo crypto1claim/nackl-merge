@@ -161,6 +161,32 @@ export function getMiningDebug(): MiningDebug {
   };
 }
 
+/**
+ * Решающая проверка: зарегистрированы ли майнинг-ключи в контракте.
+ * 'ok'      — ключи на месте (значит отказы отправки = перегрузка mainnet);
+ * 'pending' — ещё не подтвердились (нужно подождать распространения);
+ * 'nokeys'  — нет сохранённых ключей (переподключить кошелёк).
+ * Короткая проба (не висим) — для кнопки диагностики.
+ */
+export async function probeKeysPropagated(): Promise<'ok' | 'pending' | 'nokeys'> {
+  const wname = currentWallet;
+  const stored = wname ? loadKeys(wname) : null;
+  if (!stored) return 'nokeys';
+  try {
+    await ensure_mining_keys_propagated({
+      client_config: { network: { endpoints: ENDPOINTS } },
+      miner_address: stored.minerAddress,
+      app_id: APP_ID,
+      expected_owner_public: stored.publicKey,
+      max_attempts: 3,
+      interval_ms: 1500,
+    });
+    return 'ok';
+  } catch {
+    return 'pending';
+  }
+}
+
 function setTapSum(total: number, win: number): void {
   tapSum5m = win;
   if (tapSum === total) return;
