@@ -323,24 +323,64 @@ async function doWalletSetup(
     client_config: { network: { endpoints: ENDPOINTS } },
     wallet_name: walletName,
   });
-  await ensure_mining_keys_propagated({
-    client_config: { network: { endpoints: ENDPOINTS } },
-    miner_address: minerAddress,
-    app_id: APP_ID,
-    expected_owner_public: publicKey,
-    max_attempts: PROPAGATION_ATTEMPTS,
-    interval_ms: 2000,
-  });
-  assertActive();
 
+  const built = await waitMinerReady(minerAddress, publicKey, secretKey, assertActive);
   try { miner?.free(); } catch { /* */ }  // освобождаем прежний WASM-Miner перед пересозданием
-  miner = await Miner.new(ENDPOINTS, APP_ID, minerAddress, publicKey, secretKey);
+  miner = built;
   miner.add_tap(0, 0);
   setMiningStatus('idle');
 
   saveKeys({ walletName, publicKey, secretKey, minerAddress });
   clearPendingMining();
   return walletName;
+}
+
+/**
+ * Ждёт готовности майнера и возвращает рабочий Miner. Кошелёк уже подтвердил
+ * ключи — осталась он-чейн регистрация. Вместо слепого ожидания подтверждения
+ * (до нескольких минут) мы НАПРЯМУЮ пробуем поднять майнер: как только он
+ * строится и `can_start()` = true, ключи на месте и подключение успешно.
+ * Это и быстрее (не ждём лишнего, если ключи уже видны), и надёжнее
+ * (проверяем ровно то, что нужно для майнинга, а не косвенный индикатор).
+ * Параллельно крутим ensure_mining_keys_propagated как ранний сигнал.
+ */
+async function waitMinerReady(
+  minerAddress: string,
+  publicKey: string,
+  secretKey: string,
+  assertActive: () => void,
+): Promise<Miner> {
+  // Ранний сигнал: как только сеть подтвердит распространение ключей —
+  // промис резолвится, и следующая проба Miner.new точно удастся.
+  let propagated = false;
+  ensure_mining_keys_propagated({
+    client_config: { network: { endpoints: ENDPOINTS } },
+    miner_address: minerAddress,
+    app_id: APP_ID,
+    expected_owner_public: publicKey,
+    max_attempts: PROPAGATION_ATTEMPTS,
+    interval_ms: 2000,
+  }).then(() => { propagated = true; }).catch(() => { /* пробуем билдом ниже */ });
+
+  let lastErr: unknown = null;
+  // ~2.5 мин проб (как и обещает UI «минуту-две» + запас)
+  for (let attempt = 0; attempt < 50; attempt++) {
+    assertActive();
+    try {
+      const m = await Miner.new(ENDPOINTS, APP_ID, minerAddress, publicKey, secretKey);
+      // Майнер построился И может стартовать → ключи зарегистрированы.
+      if (m.can_start()) return m;
+      // Построился, но пока не может — значит распространение подтверждено
+      // сетью (propagated) или вот-вот: отдаём как есть, startMining проверит
+      // can_start повторно (сессия поднимется, когда сеть будет готова).
+      if (propagated) return m;
+      try { m.free(); } catch { /* */ }
+    } catch (e) {
+      lastErr = e;
+    }
+    await new Promise((r) => setTimeout(r, 3000));
+  }
+  throw lastErr ?? new Error('mining keys propagation timeout');
 }
 
 /**
@@ -356,16 +396,10 @@ export async function resumePendingMining(): Promise<string | null> {
     client_config: { network: { endpoints: ENDPOINTS } },
     wallet_name: pending.walletName,
   });
-  await ensure_mining_keys_propagated({
-    client_config: { network: { endpoints: ENDPOINTS } },
-    miner_address: minerAddress,
-    app_id: APP_ID,
-    expected_owner_public: pending.publicKey,
-    max_attempts: 30,
-    interval_ms: 2000,
-  });
+  // Та же оптимистичная проба, что и в основном флоу: поднимаем майнер,
+  // как только ключи видны, не ожидая слепо полного подтверждения.
   try { miner?.free(); } catch { /* */ }
-  miner = await Miner.new(ENDPOINTS, APP_ID, minerAddress, pending.publicKey, pending.secretKey);
+  miner = await waitMinerReady(minerAddress, pending.publicKey, pending.secretKey, () => {});
   setMiningStatus('idle');
   saveKeys({
     walletName: pending.walletName,
