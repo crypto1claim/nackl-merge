@@ -121,6 +121,45 @@ export function getMiningStatus(): MiningStatus {
   return miningStatus;
 }
 
+// ── Живой счётчик тапов (из miner.get_miner_data) ────────────
+// tap_sum_5m — зачтённые вклады за текущее 5-мин окно майнинга. Даёт игроку
+// видимое доказательство, что майнинг реально идёт, пока NACKL копится.
+let tapSum5m = 0;
+const tapSubs = new Set<(taps: number) => void>();
+let tapPollTimer: number | null = null;
+
+function setTapSum(v: number): void {
+  if (tapSum5m === v) return;
+  tapSum5m = v;
+  tapSubs.forEach((cb) => { try { cb(v); } catch { /* */ } });
+}
+
+export function subscribeMiningTaps(cb: (taps: number) => void): () => void {
+  tapSubs.add(cb);
+  try { cb(tapSum5m); } catch { /* */ }
+  return () => { tapSubs.delete(cb); };
+}
+
+function startTapPoll(): void {
+  if (tapPollTimer !== null) return;
+  const poll = async () => {
+    if (!miner) { stopTapPoll(); return; }
+    try {
+      const data = await miner.get_miner_data();
+      // tap_sum_5m — вклады за текущее окно; tap_sum — всего за эпоху.
+      const n = Number(data.tap_sum_5m ?? 0n);
+      try { data.free?.(); } catch { /* */ }
+      setTapSum(Number.isFinite(n) ? n : 0);
+    } catch { /* сеть недоступна — покажем прошлое значение */ }
+  };
+  void poll();
+  tapPollTimer = window.setInterval(poll, 5000);
+}
+
+function stopTapPoll(): void {
+  if (tapPollTimer !== null) { clearInterval(tapPollTimer); tapPollTimer = null; }
+}
+
 // Сообщения миннера — JSON вида {action, data: {status}, error}
 // (формат из официального примера miner-react).
 function handleMinerMessage(msg: string): void {
@@ -441,6 +480,7 @@ export function startMining(onEvent?: (msg: string) => void): void {
   });
   setMiningStatus('mining');
   startRewardClaimLoop();
+  startTapPoll();
 }
 
 // Клейм намайненной награды. В официальном примере Acki Nacki это ОТДЕЛЬНЫЙ
@@ -490,6 +530,7 @@ export function addTap(x: number, y: number): void {
 export function stopMining(): void {
   miner?.stop();
   stopRewardClaimLoop();
+  stopTapPoll();
   // Финальный клейм при остановке сессии — не терять последний вклад.
   void claimReward();
   if (miner) setMiningStatus('idle');
@@ -504,6 +545,8 @@ export function disconnectBee(walletName: string): void {
   clearPendingMining();
   cancelConnectSession();
   stopRewardClaimLoop();
+  stopTapPoll();
+  setTapSum(0);
   miner?.free();
   miner = null;
   setMiningStatus('off');

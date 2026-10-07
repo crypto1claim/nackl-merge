@@ -12,7 +12,7 @@ import {
 } from './beeEngine';
 
 export type { ConnectStage };
-export { subscribeMiningStatus, getMiningStatus, type MiningStatus } from './beeEngine';
+export { subscribeMiningStatus, getMiningStatus, subscribeMiningTaps, type MiningStatus } from './beeEngine';
 
 export interface WalletState {
   connected: boolean;

@@ -8,7 +8,7 @@ import ShopScreen from './ShopScreen';
 import AboutScreen from './AboutScreen';
 import Tutorial, { hasSeenTutorial } from './Tutorial';
 import OnboardingScreen, { hasSeenOnboarding } from './OnboardingScreen';
-import { getStoredWallet, resumeWallet, resumePendingConnect, ensureMining, claimMiningReward, subscribeMiningStatus, getMiningStatus, shortAddress, type WalletState, type MiningStatus } from './wallet';
+import { getStoredWallet, resumeWallet, resumePendingConnect, ensureMining, claimMiningReward, subscribeMiningStatus, getMiningStatus, subscribeMiningTaps, shortAddress, type WalletState, type MiningStatus } from './wallet';
 import { t, subscribeLang } from './i18n';
 import { applyTheme, subscribeTheme } from './themes';
 import { Sound } from './sound';
@@ -31,6 +31,10 @@ export default function App() {
   // Живой статус майнинга — индикатор в HUD (точка возле имени кошелька).
   const [miningState, setMiningState] = useState<MiningStatus>(() => getMiningStatus());
   useEffect(() => subscribeMiningStatus(setMiningState), []);
+  // Живой счётчик зачтённых вкладов (тапов) за текущее окно майнинга —
+  // видимое доказательство, что майнинг идёт, пока NACKL копится.
+  const [miningTaps, setMiningTaps] = useState(0);
+  useEffect(() => subscribeMiningTaps(setMiningTaps), []);
   // sessionEarned — сколько MRG заработал в ТЕКУЩЕЙ игре. Показывается в HUD.
   const [sessionEarned, setSessionEarned] = useState(0);
   // balance — общий накопленный (между играми)
@@ -370,6 +374,14 @@ export default function App() {
             <span className={`wallet-dot wallet-dot-${miningState}`} />
             <span className="hud-pill-text">{wallet.address ? shortAddress(wallet.address) : t('hud.connected')}</span>
           </div>
+          {/* Живой счётчик майнинга: зачтённые вклады за текущее окно.
+              Виден только когда майнинг реально идёт — доказательство работы. */}
+          {miningState === 'mining' && (
+            <div className="hud-pill hud-pill-mining" title={t('hud.mining_hint')}>
+              <MiningIcon />
+              <span className="hud-pill-text">{miningTaps}</span>
+            </div>
+          )}
           <div className="hud-pill hud-pill-next" title={t('hud.next')}>
             <img
               src={`coins/${spriteFile(FRUITS[nextLevel].ticker)}`}
@@ -634,6 +646,16 @@ function PauseIcon() {
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <rect x="6" y="4" width="4" height="16" rx="1"/>
       <rect x="14" y="4" width="4" height="16" rx="1"/>
+    </svg>
+  );
+}
+
+/** Иконка майнинга в HUD — стилизованная кирка/искра. */
+function MiningIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: 3 }}>
+      <path d="M14 2l-2 5 3 1-4 7" />
+      <path d="M4 20l6-6" />
     </svg>
   );
 }
