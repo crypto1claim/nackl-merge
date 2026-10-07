@@ -36,7 +36,12 @@ const ENDPOINTS       = ['https://mainnet.ackinacki.org'];
 // заметил запрос майнинг-ключей (без него кошелёк тоже увидит запрос — поллингом).
 // URL взят из официального примера miner-react.
 const PUSH_API_URL    = 'https://app-backend-dev.ackinacki.org/api';
-const MINING_DURATION = 15 * 60 * 1000;
+// Длительность одной сессии майнинга = сетевая эпоха Acki Nacki (~330с).
+// Доказательство отправляется в сеть по завершении сессии, поэтому держим
+// её короткой и согласованной с эпохой — иначе вклады копятся локально, но
+// на блокчейн не уходят (confirmed taps = 0). «Хранитель сессии» ниже
+// перезапускает следующую сессию, пока майнер жив.
+const MINING_DURATION = 330 * 1000;
 const STORAGE_PREFIX  = 'acki_merge_bee_';
 // Бесплатная раздача движка через jsDelivr (файл публично лежит в npm).
 // ⚠️ При апгрейде @teamgosh/bee-sdk обнови ВЕРСИЮ в URL и ХЭШ:
@@ -500,15 +505,48 @@ export async function restoreMiner(walletName: string): Promise<boolean> {
   return true;
 }
 
-export function startMining(onEvent?: (msg: string) => void): void {
-  if (!miner || !miner.can_start()) return;
+let minerEventCb: ((msg: string) => void) | undefined;
+
+/** Запускает одну сессию майнинга, если майнер свободен (can_start). */
+function beginSession(): boolean {
+  if (!miner || !miner.can_start()) return false;
   miner.start(MINING_DURATION, (msg: string) => {
     handleMinerMessage(msg);
-    if (onEvent) onEvent(msg);
+    if (minerEventCb) minerEventCb(msg);
   });
   setMiningStatus('mining');
+  return true;
+}
+
+// «Хранитель сессии»: сессия майнинга длится MINING_DURATION и по истечении
+// завершается (доказательство уходит в сеть). SDK НЕ всегда присылает сигнал
+// 'finished', поэтому вместо того чтобы полагаться только на статус, мы
+// периодически проверяем can_start() — если майнер снова свободен, значит
+// прошлая сессия закрылась (вклады отправлены), и запускаем следующую.
+// Без этого одна 15-мин сессия никогда не завершалась и ничего не отправляла.
+const SESSION_KEEP_INTERVAL = 20 * 1000;
+let sessionKeeperTimer: number | null = null;
+
+function startSessionKeeper(): void {
+  if (sessionKeeperTimer !== null) return;
+  sessionKeeperTimer = window.setInterval(() => {
+    if (!miner) { stopSessionKeeper(); return; }
+    // can_start() === true → сессии нет (завершилась) → начинаем новую.
+    if (miner.can_start()) beginSession();
+  }, SESSION_KEEP_INTERVAL);
+}
+
+function stopSessionKeeper(): void {
+  if (sessionKeeperTimer !== null) { clearInterval(sessionKeeperTimer); sessionKeeperTimer = null; }
+}
+
+export function startMining(onEvent?: (msg: string) => void): void {
+  if (!miner) return;
+  minerEventCb = onEvent;
+  beginSession();
   startRewardClaimLoop();
   startTapPoll();
+  startSessionKeeper();
 }
 
 // Клейм намайненной награды. В официальном примере Acki Nacki это ОТДЕЛЬНЫЙ
@@ -561,6 +599,7 @@ export function stopMining(): void {
   miner?.stop();
   stopRewardClaimLoop();
   stopTapPoll();
+  stopSessionKeeper();
   // Финальный клейм при остановке сессии — не терять последний вклад.
   void claimReward();
   if (miner) setMiningStatus('idle');
@@ -576,6 +615,7 @@ export function disconnectBee(walletName: string): void {
   cancelConnectSession();
   stopRewardClaimLoop();
   stopTapPoll();
+  stopSessionKeeper();
   setTapSum(0, 0);
   localTaps = 0;
   miner?.free();
