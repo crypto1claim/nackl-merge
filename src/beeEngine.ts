@@ -121,22 +121,46 @@ export function getMiningStatus(): MiningStatus {
   return miningStatus;
 }
 
-// ── Живой счётчик тапов (из miner.get_miner_data) ────────────
-// tap_sum_5m — зачтённые вклады за текущее 5-мин окно майнинга. Даёт игроку
-// видимое доказательство, что майнинг реально идёт, пока NACKL копится.
+// ── Живой счётчик тапов + диагностика майнинга ───────────────
+// tap_sum — всего зачтённых вкладов за эпоху (накопительно, только растёт);
+// tap_sum_5m — за текущее 5-мин окно. Для HUD показываем накопительный tap_sum.
+let tapSum = 0;
 let tapSum5m = 0;
+let localTaps = 0;              // сколько add_tap() вызвала игра (клиентская сторона)
+let lastMinerMsg = '';          // последнее сырое сообщение от SDK-миннера
+let lastMinerError = '';        // последняя ошибка миннера
+let lastPollError = '';         // последняя ошибка get_miner_data
 const tapSubs = new Set<(taps: number) => void>();
 let tapPollTimer: number | null = null;
 
-function setTapSum(v: number): void {
-  if (tapSum5m === v) return;
-  tapSum5m = v;
-  tapSubs.forEach((cb) => { try { cb(v); } catch { /* */ } });
+export interface MiningDebug {
+  status: MiningStatus;
+  tapSum: number;
+  tapSum5m: number;
+  localTaps: number;
+  lastMsg: string;
+  lastError: string;
+  pollError: string;
+}
+export function getMiningDebug(): MiningDebug {
+  return {
+    status: miningStatus, tapSum, tapSum5m, localTaps,
+    lastMsg: lastMinerMsg.slice(0, 200),
+    lastError: lastMinerError.slice(0, 200),
+    pollError: lastPollError.slice(0, 200),
+  };
+}
+
+function setTapSum(total: number, win: number): void {
+  tapSum5m = win;
+  if (tapSum === total) return;
+  tapSum = total;
+  tapSubs.forEach((cb) => { try { cb(total); } catch { /* */ } });
 }
 
 export function subscribeMiningTaps(cb: (taps: number) => void): () => void {
   tapSubs.add(cb);
-  try { cb(tapSum5m); } catch { /* */ }
+  try { cb(tapSum); } catch { /* */ }
   return () => { tapSubs.delete(cb); };
 }
 
@@ -146,11 +170,14 @@ function startTapPoll(): void {
     if (!miner) { stopTapPoll(); return; }
     try {
       const data = await miner.get_miner_data();
-      // tap_sum_5m — вклады за текущее окно; tap_sum — всего за эпоху.
-      const n = Number(data.tap_sum_5m ?? 0n);
+      const total = Number(data.tap_sum ?? 0n);
+      const win = Number(data.tap_sum_5m ?? 0n);
       try { data.free?.(); } catch { /* */ }
-      setTapSum(Number.isFinite(n) ? n : 0);
-    } catch { /* сеть недоступна — покажем прошлое значение */ }
+      lastPollError = '';
+      setTapSum(Number.isFinite(total) ? total : 0, Number.isFinite(win) ? win : 0);
+    } catch (e) {
+      lastPollError = String((e as any)?.message ?? e);
+    }
   };
   void poll();
   tapPollTimer = window.setInterval(poll, 5000);
@@ -163,9 +190,10 @@ function stopTapPoll(): void {
 // Сообщения миннера — JSON вида {action, data: {status}, error}
 // (формат из официального примера miner-react).
 function handleMinerMessage(msg: string): void {
+  lastMinerMsg = msg;
   try {
     const payload = JSON.parse(msg) as { action?: string; data?: { status?: string } | null; error?: string | null };
-    if (payload.error) { setMiningStatus('error'); return; }
+    if (payload.error) { lastMinerError = String(payload.error); setMiningStatus('error'); return; }
     const status = payload.data?.status;
     if (payload.action === 'status_updated' && status) {
       if (status === 'computing' || status === 'submitting') setMiningStatus('mining');
@@ -524,7 +552,9 @@ export async function claimRewardNow(): Promise<void> {
 }
 
 export function addTap(x: number, y: number): void {
-  miner?.add_tap(x, y);
+  if (!miner) return;
+  miner.add_tap(x, y);
+  localTaps++;
 }
 
 export function stopMining(): void {
@@ -546,7 +576,8 @@ export function disconnectBee(walletName: string): void {
   cancelConnectSession();
   stopRewardClaimLoop();
   stopTapPoll();
-  setTapSum(0);
+  setTapSum(0, 0);
+  localTaps = 0;
   miner?.free();
   miner = null;
   setMiningStatus('off');
