@@ -149,6 +149,11 @@ button, a, [role="button"] {
 /* Pill заработанного — желтое число + приглушённый MRG */
 .hud-pill-earned { padding: 0 11px; gap: 4px; }
 .hud-pill-earned .hud-pill-text { color: #ffd84d; text-shadow: 0 0 6px rgba(255, 216, 77, 0.35); font-weight: 800; }
+
+/* Pill живого майнинга — зелёное число вкладов, мягкое свечение */
+.hud-pill-mining { padding: 0 9px; gap: 2px; color: #4ade80; }
+.hud-pill-mining .hud-pill-text { color: #4ade80; text-shadow: 0 0 6px rgba(74, 222, 128, 0.4); font-weight: 800; }
+.hud-pill-mining svg { animation: pulse-dot 2s ease-in-out infinite; }
 .hud-pill-suffix {
   font-size: 9px;
   font-weight: 700;
