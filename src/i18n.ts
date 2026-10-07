@@ -185,7 +185,8 @@ const TRANSLATIONS = {
     // HUD
     'hud.balance': 'БАЛАНС',
     'hud.earned': 'ЗАРАБОТАНО',
-    'hud.mining_hint': 'Намайнено вкладов за текущее окно — майнинг идёт',
+    'hud.mining_hint': 'Зачтённых сетью вкладов за эпоху — майнинг идёт',
+    'settings.mining_diag': 'Диагностика майнинга',
 
     // Онбординг (первый экран)
     'onboarding.tagline': 'Suika-style merge game в экосистеме Acki Nacki',
@@ -363,7 +364,8 @@ const TRANSLATIONS = {
 
     'hud.balance': 'BALANCE',
     'hud.earned': 'EARNED',
-    'hud.mining_hint': 'Mining contributions in the current window — mining is active',
+    'hud.mining_hint': 'Network-confirmed contributions this epoch — mining is active',
+    'settings.mining_diag': 'Mining diagnostics',
 
     // Onboarding (first screen)
     'onboarding.tagline': 'Suika-style merge game in the Acki Nacki ecosystem',

@@ -5621,3 +5621,12 @@ button:active:not(.toggle):not(.lang-btn):not(.modal-close)::after {
   .powerup-mini .powerup-pill-icon { width: 17px; height: 17px; }
   .powerup-mini-count { min-width: 14px; height: 14px; font-size: 8px; }
 }
+
+/* Диагностика майнинга в настройках (моноширинный readout) */
+.mining-diag { margin: 10px 0; padding: 10px 12px; border-radius: 12px; background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.08); }
+.mining-diag-head { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: rgba(255,255,255,0.6); margin-bottom: 6px; }
+.mining-diag-refresh { background: none; border: none; color: #4ade80; font-size: 16px; cursor: pointer; }
+.mining-diag-body { font-family: ui-monospace, Menlo, monospace; font-size: 10px; color: rgba(255,255,255,0.7); line-height: 1.5; word-break: break-word; user-select: text; -webkit-user-select: text; }
+.mining-diag-body b { color: #4ade80; }
+.mining-diag-msg { color: rgba(255,255,255,0.45); margin-top: 2px; }
+.mining-diag-err { color: #ff8080; margin-top: 2px; }

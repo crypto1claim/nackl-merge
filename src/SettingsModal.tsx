@@ -11,7 +11,7 @@
 import { useState } from 'react';
 import { t, getLang, setLang, type Lang } from './i18n';
 import { Settings } from './settings';
-import { disconnectWallet, type WalletState } from './wallet';
+import { disconnectWallet, getMiningDebug, type WalletState } from './wallet';
 import { hapticSelection } from './telegram';
 import { Sound } from './sound';
 
@@ -69,6 +69,8 @@ export default function SettingsModal({ onClose, onWalletDisconnect }: Props) {
               телефонов вибрация работает нестабильно. Когда исправят —
               вернём. */}
 
+          <MiningDiagnostics />
+
           <div className="setting-actions">
             <button
               className="action-btn"
@@ -93,6 +95,29 @@ export default function SettingsModal({ onClose, onWalletDisconnect }: Props) {
             </button>
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+/** Диагностика майнинга — сырые данные от SDK. Для разбора «не майнит».
+ *  Обновляется по кнопке (чтобы не дёргать сеть постоянно в настройках). */
+function MiningDiagnostics() {
+  const [d, setD] = useState(() => getMiningDebug());
+  const refresh = () => { Sound.click(); setD(getMiningDebug()); };
+  return (
+    <div className="mining-diag">
+      <div className="mining-diag-head">
+        <span>⛏ {t('settings.mining_diag')}</span>
+        <button className="mining-diag-refresh" onClick={refresh}>↻</button>
+      </div>
+      <div className="mining-diag-body">
+        <div>status: <b>{d.status}</b></div>
+        <div>confirmed taps (epoch): <b>{d.tapSum}</b> · 5m: <b>{d.tapSum5m}</b></div>
+        <div>sent by game: <b>{d.localTaps}</b></div>
+        {d.lastMsg && <div className="mining-diag-msg">msg: {d.lastMsg}</div>}
+        {d.lastError && <div className="mining-diag-err">err: {d.lastError}</div>}
+        {d.pollError && <div className="mining-diag-err">poll: {d.pollError}</div>}
       </div>
     </div>
   );
